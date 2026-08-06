@@ -1,0 +1,18 @@
+# Rust
+/target/
+Cargo.lock
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Daemon
+/tmp/goglz.*
+.kaptaind/
