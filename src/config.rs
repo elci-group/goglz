@@ -54,10 +54,10 @@ pub struct ReviseConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LanguageConfig {
-    pub code: String,
-    pub name: String,
-    pub enabled: bool,
-    pub output_pattern: String, // e.g., "{filename}_{lang}.{ext}"
+    pub code: String,        // ISO language code (e.g., "en", "es", "zh")
+    pub name: String,        // Full language name (e.g., "English", "Spanish", "Chinese")
+    pub enabled: bool,      // Whether this language is enabled for translation
+    pub output_pattern: String, // Output filename pattern (e.g., "{filename}_{lang}.{ext}")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

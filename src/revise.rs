@@ -105,7 +105,7 @@ impl ReviseProcessor {
         // Build revision prompt based on configuration
         let prompt = self.build_revision_prompt(&content, &asset_context);
 
-        // Call AI to revise the document
+        // Call AI to revise the document (base language revision)
         let improved_content = self.ai_client.revise_document(&prompt).await?;
 
         // Create backup of original
@@ -114,6 +114,18 @@ impl ReviseProcessor {
         // Write revised content
         fs::write(path, &improved_content)
             .map_err(|e| GoglzError::ProcessingFailed(format!("Failed to write revised file: {}", e)))?;
+
+        // Handle multi-language generation if enabled
+        let enabled_languages: Vec<String> = self.config.languages
+            .iter()
+            .filter(|lang| lang.enabled)
+            .map(|lang| lang.name.clone())
+            .collect();
+
+        if !enabled_languages.is_empty() {
+            info!("Generating translations for {} languages", enabled_languages.len());
+            self.generate_translations(path, &improved_content, &enabled_languages).await?;
+        }
 
         // Return processing result
         Ok(ProcessingResult {
@@ -125,6 +137,54 @@ impl ReviseProcessor {
             processing_time_ms: 0, // Could be enhanced to track timing
             status: crate::processor::ProcessingStatus::Completed,
         })
+    }
+
+    async fn generate_translations(&self, original_path: &Path, content: &str, languages: &[String]) -> Result<()> {
+        // Perform parallel translation
+        let translations = self.ai_client.translate_document_parallel(content, languages).await?;
+        
+        info!("Successfully generated {} translations", translations.len());
+
+        // Save each translation with language-specific filename
+        for (lang_name, translated_content) in translations {
+            let lang_config = self.config.languages
+                .iter()
+                .find(|l| l.name == lang_name)
+                .ok_or_else(|| GoglzError::ProcessingFailed(format!("Language config not found: {}", lang_name)))?;
+
+            let output_path = self.generate_language_output_path(original_path, lang_config)?;
+            
+            fs::write(&output_path, translated_content)
+                .map_err(|e| GoglzError::ProcessingFailed(format!("Failed to write translation: {}", e)))?;
+            
+            info!("Saved {} translation: {:?}", lang_name, output_path);
+        }
+
+        Ok(())
+    }
+
+    fn generate_language_output_path(&self, original_path: &Path, lang_config: &crate::config::LanguageConfig) -> Result<PathBuf> {
+        let filename = original_path.file_name()
+            .and_then(|f| f.to_str())
+            .ok_or_else(|| GoglzError::ProcessingFailed("Invalid filename".to_string()))?;
+
+        let extension = original_path.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("md");
+
+        let stem = filename.trim_end_matches(&format!(".{}", extension));
+        
+        // Apply the output pattern from config
+        let output_filename = lang_config.output_pattern
+            .replace("{filename}", stem)
+            .replace("{lang}", &lang_config.code.to_lowercase())
+            .replace("{ext}", extension);
+
+        let output_path = original_path.parent()
+            .unwrap_or(Path::new("."))
+            .join(output_filename);
+
+        Ok(output_path)
     }
 
     fn load_asset_context(&self, document_path: &Path) -> Result<String> {
