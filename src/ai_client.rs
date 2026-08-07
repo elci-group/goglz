@@ -67,6 +67,20 @@ impl AiClient {
         self.parse_clarity_improvement(text, &response)
     }
 
+    pub async fn revise_document(&self, prompt: &str) -> Result<String> {
+        let response = self.call_groq(prompt).await?;
+        
+        // Clean up response - remove any markdown code blocks if present
+        let cleaned = response
+            .trim_start_matches("```")
+            .trim_start_matches("```markdown")
+            .trim_start_matches("```text")
+            .trim_end_matches("```")
+            .trim();
+        
+        Ok(cleaned.to_string())
+    }
+
     async fn call_gpt_oss(&self, model: &str, prompt: &str) -> Result<String> {
         let request_body = json!({
             "model": model,

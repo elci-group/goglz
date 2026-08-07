@@ -1,0 +1,44 @@
+{
+  "name": "goglz-dev",
+  "skill_version": "0.1.0",
+  "compatible_apps": [
+    ">=0.1.0"
+  ],
+  "created": "2026-08-07T00:18:54.067311373Z",
+  "last_verified": "2026-08-07",
+  "confidence": 0.95,
+  "status": "active",
+  "verified_app_version": "0.1.0",
+  "mutation_history": [],
+  "context": {
+    "frameworks": [
+      "tokio"
+    ],
+    "toolchains": [],
+    "directories": [
+      "benchmarks",
+      "src"
+    ],
+    "dependencies": {
+      "anyhow": "1.0",
+      "chrono": "0.4",
+      "clap": "4.4",
+      "daemonize": "0.5",
+      "dirs": "5.0",
+      "dotenv": "0.15",
+      "libc": "0.2",
+      "notify": "6.1",
+      "reqwest": "0.11",
+      "serde": "1.0",
+      "serde_json": "1.0",
+      "thiserror": "1.0",
+      "tokio": "1.35",
+      "toml": "0.8",
+      "tracing": "0.1",
+      "tracing-subscriber": "0.3",
+      "uuid": "1.6",
+      "walkdir": "2.4"
+    }
+  },
+  "body_path": "goglz-dev.md"
+}

@@ -1,24 +1,25 @@
 [package]
 name = "goglz"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1.35", features = ["full"] }
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4.4", features = ["derive"] }
+daemonize = "0.5"
+dirs = "5.0"
+dotenv = "0.15"
+libc = "0.2"
 notify = "6.1"
+reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-toml = "0.8"
-reqwest = { version = "0.11", features = ["json"] }
-anyhow = "1.0"
+serde_yaml = "0.9"
 thiserror = "1.0"
+tokio = { version = "1.35", features = ["full"] }
+toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = "0.3"
-walkdir = "2.4"
-daemonize = "0.5"
-dotenv = "0.15"
-clap = { version = "4.4", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
-dirs = "5.0"
-libc = "0.2"
+walkdir = "2.4"

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -39,6 +39,50 @@ pub struct ProcessingConfig {
     pub max_file_size_mb: u64,
     pub batch_size: usize,
     pub debounce_interval_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReviseConfig {
+    pub purpose: String,
+    pub scope: String,
+    pub writing_style: WritingStyle,
+    pub formatting_rules: FormattingRules,
+    pub global_assets: Vec<AssetReference>,
+    pub local_assets: Vec<AssetReference>,
+    pub languages: Vec<LanguageConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LanguageConfig {
+    pub code: String,
+    pub name: String,
+    pub enabled: bool,
+    pub output_pattern: String, // e.g., "{filename}_{lang}.{ext}"
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WritingStyle {
+    pub tone: String,
+    pub voice: String,
+    pub audience: String,
+    pub guidelines: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FormattingRules {
+    pub headings: bool,
+    pub bullet_points: bool,
+    pub numbered_lists: bool,
+    pub code_blocks: bool,
+    pub max_line_length: Option<usize>,
+    pub custom_rules: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetReference {
+    pub path: PathBuf,
+    pub asset_type: String,
+    pub description: String,
 }
 
 impl Default for Config {
@@ -93,4 +137,50 @@ pub fn expand_path(path: &PathBuf) -> PathBuf {
         }
     }
     path.clone()
+}
+
+pub fn load_revise_config(project_root: &Path) -> Result<ReviseConfig> {
+    let config_path = project_root.join("goglz.yaml");
+    
+    if !config_path.exists() {
+        tracing::warn!("goglz.yaml not found at {:?}, using defaults", config_path);
+        return Ok(default_revise_config());
+    }
+
+    let content = fs::read_to_string(&config_path)
+        .with_context(|| format!("Failed to read goglz.yaml at {:?}", config_path))?;
+
+    let config: ReviseConfig = serde_yaml::from_str(&content)
+        .with_context(|| format!("Failed to parse YAML config from {:?}", config_path))?;
+
+    tracing::info!("Loaded revise configuration from {:?}", config_path);
+    Ok(config)
+}
+
+fn default_revise_config() -> ReviseConfig {
+    ReviseConfig {
+        purpose: "Improve document clarity and readability".to_string(),
+        scope: "All documentation files".to_string(),
+        writing_style: WritingStyle {
+            tone: "Professional and clear".to_string(),
+            voice: "Objective and informative".to_string(),
+            audience: "General technical audience".to_string(),
+            guidelines: vec![
+                "Use active voice".to_string(),
+                "Avoid jargon when possible".to_string(),
+                "Be concise but comprehensive".to_string(),
+            ],
+        },
+        formatting_rules: FormattingRules {
+            headings: true,
+            bullet_points: true,
+            numbered_lists: true,
+            code_blocks: true,
+            max_line_length: Some(80),
+            custom_rules: vec![],
+        },
+        global_assets: vec![],
+        local_assets: vec![],
+        languages: vec![],
+    }
 }

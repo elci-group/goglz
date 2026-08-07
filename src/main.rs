@@ -3,16 +3,19 @@ mod config;
 mod error;
 mod monitor;
 mod processor;
+mod revise;
 
 use crate::ai_client::AiClient;
-use crate::config::load_config;
+use crate::config::{load_config, load_revise_config};
 use crate::error::Result;
 use crate::monitor::DirectoryMonitor;
 use crate::processor::DocumentProcessor;
+use crate::revise::ReviseProcessor;
 use clap::{Parser, Subcommand};
 use daemonize::Daemonize;
 use std::fs::File;
 use std::io::{Write, BufRead};
+use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tracing::info;
 use tracing_subscriber;
@@ -39,6 +42,12 @@ enum Commands {
     Status,
     /// Generate an example configuration file
     InitConfig,
+    /// Revise documents in a directory according to goglz.yaml
+    Revise {
+        /// Directory to revise (default: current working directory)
+        #[arg(short, long)]
+        directory: Option<PathBuf>,
+    },
 }
 
 #[tokio::main]
@@ -57,6 +66,9 @@ async fn main() -> Result<()> {
         }
         Commands::InitConfig => {
             init_config()?;
+        }
+        Commands::Revise { directory } => {
+            revise_documents(directory).await?;
         }
     }
 
@@ -225,5 +237,42 @@ debounce_interval_ms = 2000
     println!("Example configuration written to {:?}", config_path);
     println!("Please edit this file to add your API keys and configure directories to monitor.");
     
+    Ok(())
+}
+
+async fn revise_documents(directory: Option<PathBuf>) -> Result<()> {
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
+
+    // Determine project root (current directory or parent of target directory)
+    let target_dir = directory.unwrap_or_else(|| std::env::current_dir().unwrap());
+    let project_root = target_dir.clone();
+
+    // Load main configuration for API keys
+    let config = load_config()?;
+
+    // Load revise configuration from goglz.yaml
+    let revise_config = load_revise_config(&project_root)?;
+
+    info!("Loading revise configuration from project root: {:?}", project_root);
+    info!("Target directory: {:?}", target_dir);
+
+    // Initialize AI client
+    let ai_client = AiClient::new(&config);
+
+    // Create revise processor
+    let processor = ReviseProcessor::new(ai_client, revise_config, project_root, Some(target_dir));
+
+    // Run revision process
+    let results = processor.run().await?;
+
+    // Print summary
+    println!("\nRevision Summary:");
+    println!("  Total documents processed: {}", results.len());
+    println!("  Successful: {}", results.iter().filter(|r| matches!(r.status, crate::processor::ProcessingStatus::Completed)).count());
+    println!("  Failed: {}", results.iter().filter(|r| !matches!(r.status, crate::processor::ProcessingStatus::Completed)).count());
+
     Ok(())
 }
