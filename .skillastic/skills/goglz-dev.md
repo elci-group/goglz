@@ -46,6 +46,7 @@ You are working on Goglz, an intelligent document monitoring daemon written in R
 - **CLI**: `clap` for command-line interface
 - **Daemonization**: `daemonize` crate for background operation
 - **File Discovery**: `walkdir` for recursive directory scanning
+- **Parallel Processing**: `futures` for concurrent API calls and multi-language translation
 
 ## Common Development Tasks
 
@@ -83,6 +84,13 @@ The revise command uses a YAML configuration file at `goglz.yaml` in the project
 - **formatting_rules**: Headings, lists, code blocks, line length, custom rules
 - **global_assets**: Reference files available to all documents (style guides, templates)
 - **local_assets**: Reference files relative to individual documents
+- **languages**: Multi-language translation configuration with:
+  - **code**: ISO language code (e.g., "en", "es", "zh")
+  - **name**: Full language name (e.g., "English", "Spanish", "Chinese")
+  - **enabled**: Whether this language is enabled for translation
+  - **output_pattern**: Filename pattern for translated files (e.g., "{filename}_es.{ext}")
+
+Supported languages include: English, Spanish, Chinese, French, German, Dutch, Afrikaans, Twi, Igbo, Yoruba, Cantonese, Japanese, Hindi, Gujarati, Arabic, Hebrew, Korean, and Portuguese.
 
 ## Testing
 
@@ -108,5 +116,16 @@ The `goglz revise` command provides on-demand document revision:
 - Uses AI to revise documents according to purpose, style, and formatting rules
 - Creates backups of original files before revision
 - Supports global and local asset references for context
+
+## Multi-Language Translation
+
+The revise command supports efficient parallel multi-language generation:
+- **Single conceptual assessment**: Documents are first improved according to style guidelines
+- **Parallel translation**: All enabled languages are translated simultaneously from the improved source
+- **API efficiency**: Parallel processing minimizes API calls and maximizes throughput
+- **Consistency**: All translations derive from the same improved source, ensuring consistency
+- **Flexible output**: Language-specific filename patterns allow organized multi-language projects
+
+To enable multi-language translation, set `enabled: true` for desired languages in `goglz.yaml`. The system will automatically generate translated versions alongside the improved original.
 
 Help the user with any development tasks while following these conventions and patterns.
