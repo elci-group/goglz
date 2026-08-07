@@ -26,14 +26,14 @@ You are working on Goglz, an intelligent document monitoring daemon written in R
 - **src/**: Main source code
   - `config.rs`: Configuration loading, parsing, and validation
   - `monitor.rs`: Directory watching using `notify` crate with event debouncing
-  - `ai_client.rs`: HTTP clients for GPT OSS and Groq APIs with error handling
+  - `ai_client.rs`: HTTP clients for GPT OSS and Groq APIs with error handling and parallel translation
   - `processor.rs`: Document processing pipeline with batching and concurrency
-  - `revise.rs`: Document revision logic for on-demand document improvement
+  - `revise.rs`: Document revision logic for on-demand document improvement with multi-language support
   - `error.rs`: Comprehensive error types and handling
   - `main.rs`: CLI interface, daemon orchestration, and signal handling
 - **Cargo.toml**: Rust dependencies and project configuration
 - **README.md**: Project documentation
-- **VERSION**: Current version (0.1.0)
+- **VERSION**: Current version (0.1.1)
 - **goglz.yaml**: Project-specific revision configuration (optional)
 
 ## Technology Stack
