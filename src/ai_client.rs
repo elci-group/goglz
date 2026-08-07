@@ -81,6 +81,59 @@ impl AiClient {
         Ok(cleaned.to_string())
     }
 
+    pub async fn translate_document_parallel(&self, content: &str, target_languages: &[String]) -> Result<Vec<(String, String)>> {
+        use futures::future::join_all;
+        
+        let translation_tasks: Vec<_> = target_languages
+            .iter()
+            .map(|lang| {
+                let content = content.to_string();
+                let lang = lang.clone();
+                async move {
+                    let result = self.translate_to_language(&content, &lang).await;
+                    (lang, result)
+                }
+            })
+            .collect();
+        
+        let results = join_all(translation_tasks).await;
+        
+        let mut translations = Vec::new();
+        for (lang, result) in results {
+            match result {
+                Ok(translated) => translations.push((lang, translated)),
+                Err(e) => {
+                    tracing::warn!("Failed to translate to {}: {}", lang, e);
+                    // Continue with other languages even if one fails
+                }
+            }
+        }
+        
+        Ok(translations)
+    }
+
+    async fn translate_to_language(&self, content: &str, target_language: &str) -> Result<String> {
+        let prompt = format!(
+            "Translate the following document to {}. Maintain the original formatting, structure, and meaning. \
+            Preserve headings, lists, code blocks, and any technical terms. \
+            Return only the translated document without any additional commentary or metadata.\n\n\
+            Original document:\n{}",
+            target_language, content
+        );
+
+        let response = self.call_groq(&prompt).await?;
+        
+        // Clean up response - remove any markdown code blocks if present
+        let cleaned = response
+            .trim_start_matches("```")
+            .trim_start_matches("```markdown")
+            .trim_start_matches("```text")
+            .trim_end_matches("```")
+            .trim();
+        
+        Ok(cleaned.to_string())
+    }
+
     async fn call_gpt_oss(&self, model: &str, prompt: &str) -> Result<String> {
         let request_body = json!({
             "model": model,
