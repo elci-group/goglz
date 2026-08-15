@@ -1,4 +1,11 @@
-# Goglz
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo-light.svg" alt="Goglz" width="96" height="96">
+  </picture>
+</p>
+
+<h1 align="center">Goglz</h1>
 
 Goglz is an intelligent document monitoring daemon written in Rust. It watches specified directories for file changes, automatically analyzes documents using state-of-the-art AI models, and generates improved versions with enhanced clarity.
 
