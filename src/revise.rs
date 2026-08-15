@@ -6,7 +6,20 @@ use chrono::Utc;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{info, warn, error};
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
+
+/// True for any directory-tree entry below the root whose name starts with a
+/// dot (`.git`, `.github`, `.env`, ...). Used with `WalkDir::filter_entry` to
+/// prune hidden directories from traversal entirely, not just skip them once
+/// yielded (skipping alone does not stop WalkDir from recursing into them).
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry.depth() > 0
+        && entry
+            .file_name()
+            .to_str()
+            .map(|s| s.starts_with('.'))
+            .unwrap_or(false)
+}
 
 pub struct ReviseProcessor {
     ai_client: AiClient,
@@ -169,7 +182,7 @@ impl ReviseProcessor {
         Ok(())
     }
 
-    fn generate_language_output_path(&self, original_path: &Path, lang_config: &crate::config::LanguageConfig) -> Result<PathBuf> {
+    pub fn generate_language_output_path(&self, original_path: &Path, lang_config: &crate::config::LanguageConfig) -> Result<PathBuf> {
         let filename = original_path.file_name()
             .and_then(|f| f.to_str())
             .ok_or_else(|| GoglzError::ProcessingFailed("Invalid filename".to_string()))?;
