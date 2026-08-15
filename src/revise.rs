@@ -304,7 +304,7 @@ impl ReviseProcessor {
         prompt
     }
 
-    fn create_backup(&self, path: &Path, content: &str) -> Result<()> {
+    pub fn create_backup(&self, path: &Path, content: &str) -> Result<()> {
         let backup_path = path.with_extension(format!("{}.backup", 
             path.extension().and_then(|e| e.to_str()).unwrap_or("bak")));
         

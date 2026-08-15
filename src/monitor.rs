@@ -74,7 +74,7 @@ impl DirectoryMonitor {
         Ok(())
     }
 
-    fn process_event_static(event: Event, config: &Config) -> Option<FileEvent> {
+    pub fn process_event_static(event: Event, config: &Config) -> Option<FileEvent> {
         let path = event.paths.first()?;
 
         // Only process files, not directories
@@ -111,7 +111,7 @@ impl DirectoryMonitor {
         })
     }
 
-    fn matches_pattern(file_name: &str, pattern: &str) -> bool {
+    pub fn matches_pattern(file_name: &str, pattern: &str) -> bool {
         // Simple glob-like matching
         if pattern == "*" {
             return true;

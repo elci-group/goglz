@@ -65,7 +65,14 @@ impl DocumentProcessor {
         }
     }
 
-    async fn handle_file_event(&mut self, event: FileEvent, _debounce_duration: Duration) {
+    /// Number of files currently queued and awaiting debounce expiry.
+    /// Exposed for tests to verify that repeated events for the same path
+    /// coalesce into a single pending entry instead of queuing duplicates.
+    pub fn pending_count(&self) -> usize {
+        self.pending_files.len()
+    }
+
+    pub async fn handle_file_event(&mut self, event: FileEvent, _debounce_duration: Duration) {
         match event.event_type {
             FileEventType::Created | FileEventType::Modified => {
                 self.pending_files.insert(event.path.clone(), Instant::now());
@@ -106,7 +113,7 @@ impl DocumentProcessor {
         Ok(())
     }
 
-    async fn process_file(&self, path: &Path) -> Result<ProcessingResult> {
+    pub async fn process_file(&self, path: &Path) -> Result<ProcessingResult> {
         let start = Instant::now();
         let id = Uuid::new_v4().to_string();
 
