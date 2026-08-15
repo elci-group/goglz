@@ -1,16 +1,9 @@
-mod ai_client;
-mod config;
-mod error;
-mod monitor;
-mod processor;
-mod revise;
-
-use crate::ai_client::AiClient;
-use crate::config::{load_config, load_revise_config};
-use crate::error::Result;
-use crate::monitor::DirectoryMonitor;
-use crate::processor::DocumentProcessor;
-use crate::revise::ReviseProcessor;
+use goglz::ai_client::AiClient;
+use goglz::config::{load_config, load_revise_config};
+use goglz::error::{GoglzError, Result};
+use goglz::monitor::DirectoryMonitor;
+use goglz::processor::DocumentProcessor;
+use goglz::revise::ReviseProcessor;
 use clap::{Parser, Subcommand};
 use daemonize::Daemonize;
 use std::fs::File;
@@ -102,7 +95,7 @@ async fn start_daemon(foreground: bool) -> Result<()> {
             Ok(_) => info!("Daemonized successfully"),
             Err(e) => {
                 eprintln!("Failed to daemonize: {}", e);
-                return Err(crate::error::GoglzError::Daemonization(e.to_string()));
+                return Err(GoglzError::Daemonization(e.to_string()));
             }
         }
     }
@@ -138,7 +131,7 @@ fn stop_daemon() -> Result<()> {
 
     let pid_content = std::fs::read_to_string(pid_file)?;
     let pid: u32 = pid_content.trim().parse()
-        .map_err(|e| crate::error::GoglzError::ProcessingFailed(format!("Invalid PID: {}", e)))?;
+        .map_err(|e| GoglzError::ProcessingFailed(format!("Invalid PID: {}", e)))?;
 
     println!("Stopping goglz daemon (PID: {})...", pid);
     
@@ -164,7 +157,7 @@ fn show_status() -> Result<()> {
 
     let pid_content = std::fs::read_to_string(pid_file)?;
     let pid: u32 = pid_content.trim().parse()
-        .map_err(|e| crate::error::GoglzError::ProcessingFailed(format!("Invalid PID: {}", e)))?;
+        .map_err(|e| GoglzError::ProcessingFailed(format!("Invalid PID: {}", e)))?;
 
     // Check if process is actually running
     unsafe {
@@ -181,7 +174,7 @@ fn show_status() -> Result<()> {
 
 fn init_config() -> Result<()> {
     let config_path = dirs::home_dir()
-        .ok_or_else(|| crate::error::GoglzError::ProcessingFailed("Could not determine home directory".to_string()))?
+        .ok_or_else(|| GoglzError::ProcessingFailed("Could not determine home directory".to_string()))?
         .join(".goglz");
 
     if config_path.exists() {
@@ -271,8 +264,8 @@ async fn revise_documents(directory: Option<PathBuf>) -> Result<()> {
     // Print summary
     println!("\nRevision Summary:");
     println!("  Total documents processed: {}", results.len());
-    println!("  Successful: {}", results.iter().filter(|r| matches!(r.status, crate::processor::ProcessingStatus::Completed)).count());
-    println!("  Failed: {}", results.iter().filter(|r| !matches!(r.status, crate::processor::ProcessingStatus::Completed)).count());
+    println!("  Successful: {}", results.iter().filter(|r| matches!(r.status, goglz::processor::ProcessingStatus::Completed)).count());
+    println!("  Failed: {}", results.iter().filter(|r| !matches!(r.status, goglz::processor::ProcessingStatus::Completed)).count());
 
     Ok(())
 }

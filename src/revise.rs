@@ -57,9 +57,9 @@ impl ReviseProcessor {
         Ok(results)
     }
 
-    fn discover_documents(&self) -> Result<Vec<PathBuf>> {
+    pub fn discover_documents(&self) -> Result<Vec<PathBuf>> {
         let mut documents = Vec::new();
-        
+
         // Common documentation file extensions
         let extensions = vec![
             "md", "txt", "rst", "asciidoc", "adoc", "doc", "docx",
@@ -68,10 +68,16 @@ impl ReviseProcessor {
         for entry in WalkDir::new(&self.target_directory)
             .follow_links(true)
             .into_iter()
+            // Prune hidden directories (e.g. `.git`, `.github`, `.venv`) from the
+            // walk entirely. Without this, WalkDir still descends into them even
+            // though the per-entry checks below skip the directory entries
+            // themselves - so a non-dotfile like `.github/ISSUE_TEMPLATE/bug.md`
+            // would otherwise slip through and get silently overwritten.
+            .filter_entry(|e| !is_hidden(e))
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-            
+
             // Skip directories and hidden files
             if path.is_dir() || path.file_name()
                 .map(|f| f.to_string_lossy().starts_with('.'))
