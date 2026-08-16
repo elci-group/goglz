@@ -130,13 +130,13 @@ pub fn load_config() -> Result<Config> {
     Ok(config)
 }
 
-pub fn expand_path(path: &PathBuf) -> PathBuf {
+pub fn expand_path(path: &Path) -> PathBuf {
     if path.starts_with("~") {
         if let Some(home) = dirs::home_dir() {
             return home.join(path.strip_prefix("~").unwrap());
         }
     }
-    path.clone()
+    path.to_path_buf()
 }
 
 pub fn load_revise_config(project_root: &Path) -> Result<ReviseConfig> {
