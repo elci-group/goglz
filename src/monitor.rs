@@ -126,8 +126,7 @@ impl DirectoryMonitor {
             return true;
         }
 
-        if pattern.starts_with("*.") {
-            let ext = &pattern[2..];
+        if let Some(ext) = pattern.strip_prefix("*.") {
             return file_name.ends_with(ext);
         }
 

@@ -77,7 +77,7 @@ impl ReviseProcessor {
         let mut documents = Vec::new();
 
         // Common documentation file extensions
-        let extensions = vec!["md", "txt", "rst", "asciidoc", "adoc", "doc", "docx"];
+        let extensions = ["md", "txt", "rst", "asciidoc", "adoc", "doc", "docx"];
 
         for entry in WalkDir::new(&self.target_directory)
             .follow_links(true)
@@ -300,7 +300,7 @@ impl ReviseProcessor {
         for guideline in &self.config.writing_style.guidelines {
             prompt.push_str(&format!("  - {}\n", guideline));
         }
-        prompt.push_str("\n");
+        prompt.push('\n');
 
         // Add formatting rules
         prompt.push_str("Formatting Rules:\n");
@@ -325,13 +325,13 @@ impl ReviseProcessor {
         for custom_rule in &self.config.formatting_rules.custom_rules {
             prompt.push_str(&format!("  - {}\n", custom_rule));
         }
-        prompt.push_str("\n");
+        prompt.push('\n');
 
         // Add asset context if available
         if !asset_context.is_empty() {
             prompt.push_str("Reference Assets:\n");
             prompt.push_str(asset_context);
-            prompt.push_str("\n");
+            prompt.push('\n');
         }
 
         // Add the document content

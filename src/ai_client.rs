@@ -157,7 +157,7 @@ impl AiClient {
 
         let response = self
             .client
-            .post(&format!(
+            .post(format!(
                 "{}/chat/completions",
                 self.gpt_oss_config.api_endpoint
             ))
@@ -204,7 +204,7 @@ impl AiClient {
 
         let response = self
             .client
-            .post(&format!(
+            .post(format!(
                 "{}/chat/completions",
                 self.groq_config.api_endpoint
             ))

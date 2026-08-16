@@ -11,7 +11,6 @@ use std::io::{BufRead, Write};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tracing::info;
-use tracing_subscriber;
 
 #[derive(Parser)]
 #[command(name = "goglz")]
