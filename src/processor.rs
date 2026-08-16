@@ -1,5 +1,5 @@
 use crate::ai_client::{AiClient, ClarityImprovement, ConceptualizationResult};
-use crate::config::{Config, expand_path};
+use crate::config::{expand_path, Config};
 use crate::error::Result;
 use crate::monitor::{FileEvent, FileEventType};
 use chrono::Utc;
@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedReceiver;
-use tracing::{info, error};
+use tracing::{error, info};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,7 +75,8 @@ impl DocumentProcessor {
     pub async fn handle_file_event(&mut self, event: FileEvent, _debounce_duration: Duration) {
         match event.event_type {
             FileEventType::Created | FileEventType::Modified => {
-                self.pending_files.insert(event.path.clone(), Instant::now());
+                self.pending_files
+                    .insert(event.path.clone(), Instant::now());
                 info!("File queued for processing: {:?}", event.path);
             }
             FileEventType::Deleted => {
@@ -98,11 +99,14 @@ impl DocumentProcessor {
 
         for path in ready_to_process {
             self.pending_files.remove(&path);
-            
+
             match self.process_file(&path).await {
                 Ok(result) => {
                     self.save_result(&result).await?;
-                    info!("Processed file: {:?} (took {}ms)", path, result.processing_time_ms);
+                    info!(
+                        "Processed file: {:?} (took {}ms)",
+                        path, result.processing_time_ms
+                    );
                 }
                 Err(e) => {
                     error!("Failed to process file {:?}: {}", path, e);
@@ -144,15 +148,17 @@ impl DocumentProcessor {
         let (conceptualization, clarity_improvement) = match file_ext {
             "txt" | "md" | "rst" | "asciidoc" => {
                 let concept = self.ai_client.conceptualize_document(&content).await.ok();
-                let clarity = self.ai_client.improve_clarity_with_llama(&content).await.ok();
+                let clarity = self
+                    .ai_client
+                    .improve_clarity_with_llama(&content)
+                    .await
+                    .ok();
                 (concept, clarity)
             }
-            _ => {
-                (
-                    None,
-                    Some(self.ai_client.improve_clarity_with_llama(&content).await?)
-                )
-            }
+            _ => (
+                None,
+                Some(self.ai_client.improve_clarity_with_llama(&content).await?),
+            ),
         };
 
         Ok(ProcessingResult {

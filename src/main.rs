@@ -1,13 +1,13 @@
+use clap::{Parser, Subcommand};
+use daemonize::Daemonize;
 use goglz::ai_client::AiClient;
 use goglz::config::{load_config, load_revise_config};
 use goglz::error::{GoglzError, Result};
 use goglz::monitor::DirectoryMonitor;
 use goglz::processor::DocumentProcessor;
 use goglz::revise::ReviseProcessor;
-use clap::{Parser, Subcommand};
-use daemonize::Daemonize;
 use std::fs::File;
-use std::io::{Write, BufRead};
+use std::io::{BufRead, Write};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tracing::info;
@@ -71,7 +71,7 @@ async fn main() -> Result<()> {
 async fn start_daemon(foreground: bool) -> Result<()> {
     // Load configuration
     let config = load_config()?;
-    
+
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
@@ -112,9 +112,9 @@ async fn start_daemon(foreground: bool) -> Result<()> {
 
     // Start document processor
     let mut processor = DocumentProcessor::new(config, ai_client, event_receiver);
-    
+
     info!("Goglz daemon is running and monitoring directories...");
-    
+
     // Run the processor (this blocks indefinitely)
     processor.run().await?;
 
@@ -123,18 +123,20 @@ async fn start_daemon(foreground: bool) -> Result<()> {
 
 fn stop_daemon() -> Result<()> {
     let pid_file = "/tmp/goglz.pid";
-    
+
     if !std::path::Path::new(pid_file).exists() {
         println!("Goglz daemon is not running (no PID file found)");
         return Ok(());
     }
 
     let pid_content = std::fs::read_to_string(pid_file)?;
-    let pid: u32 = pid_content.trim().parse()
+    let pid: u32 = pid_content
+        .trim()
+        .parse()
         .map_err(|e| GoglzError::ProcessingFailed(format!("Invalid PID: {}", e)))?;
 
     println!("Stopping goglz daemon (PID: {})...", pid);
-    
+
     unsafe {
         libc::kill(pid as i32, libc::SIGTERM);
     }
@@ -142,21 +144,23 @@ fn stop_daemon() -> Result<()> {
     // Wait a bit and then remove the PID file
     std::thread::sleep(std::time::Duration::from_secs(2));
     std::fs::remove_file(pid_file)?;
-    
+
     println!("Goglz daemon stopped");
     Ok(())
 }
 
 fn show_status() -> Result<()> {
     let pid_file = "/tmp/goglz.pid";
-    
+
     if !std::path::Path::new(pid_file).exists() {
         println!("Goglz daemon is not running");
         return Ok(());
     }
 
     let pid_content = std::fs::read_to_string(pid_file)?;
-    let pid: u32 = pid_content.trim().parse()
+    let pid: u32 = pid_content
+        .trim()
+        .parse()
         .map_err(|e| GoglzError::ProcessingFailed(format!("Invalid PID: {}", e)))?;
 
     // Check if process is actually running
@@ -174,18 +178,20 @@ fn show_status() -> Result<()> {
 
 fn init_config() -> Result<()> {
     let config_path = dirs::home_dir()
-        .ok_or_else(|| GoglzError::ProcessingFailed("Could not determine home directory".to_string()))?
+        .ok_or_else(|| {
+            GoglzError::ProcessingFailed("Could not determine home directory".to_string())
+        })?
         .join(".goglz");
 
     if config_path.exists() {
         println!("Configuration file already exists at {:?}", config_path);
         print!("Overwrite? [y/N]: ");
         std::io::stdout().flush()?;
-        
+
         let stdin = std::io::stdin();
         let mut input = String::new();
         stdin.lock().read_line(&mut input)?;
-        
+
         if !input.trim().to_lowercase().starts_with('y') {
             println!("Aborted");
             return Ok(());
@@ -229,7 +235,7 @@ debounce_interval_ms = 2000
     std::fs::write(&config_path, example_config)?;
     println!("Example configuration written to {:?}", config_path);
     println!("Please edit this file to add your API keys and configure directories to monitor.");
-    
+
     Ok(())
 }
 
@@ -249,7 +255,10 @@ async fn revise_documents(directory: Option<PathBuf>) -> Result<()> {
     // Load revise configuration from goglz.yaml
     let revise_config = load_revise_config(&project_root)?;
 
-    info!("Loading revise configuration from project root: {:?}", project_root);
+    info!(
+        "Loading revise configuration from project root: {:?}",
+        project_root
+    );
     info!("Target directory: {:?}", target_dir);
 
     // Initialize AI client
@@ -264,8 +273,20 @@ async fn revise_documents(directory: Option<PathBuf>) -> Result<()> {
     // Print summary
     println!("\nRevision Summary:");
     println!("  Total documents processed: {}", results.len());
-    println!("  Successful: {}", results.iter().filter(|r| matches!(r.status, goglz::processor::ProcessingStatus::Completed)).count());
-    println!("  Failed: {}", results.iter().filter(|r| !matches!(r.status, goglz::processor::ProcessingStatus::Completed)).count());
+    println!(
+        "  Successful: {}",
+        results
+            .iter()
+            .filter(|r| matches!(r.status, goglz::processor::ProcessingStatus::Completed))
+            .count()
+    );
+    println!(
+        "  Failed: {}",
+        results
+            .iter()
+            .filter(|r| !matches!(r.status, goglz::processor::ProcessingStatus::Completed))
+            .count()
+    );
 
     Ok(())
 }

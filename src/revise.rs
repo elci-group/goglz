@@ -5,7 +5,7 @@ use crate::processor::ProcessingResult;
 use chrono::Utc;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 use walkdir::{DirEntry, WalkDir};
 
 /// True for any directory-tree entry below the root whose name starts with a
@@ -36,7 +36,7 @@ impl ReviseProcessor {
         target_directory: Option<PathBuf>,
     ) -> Self {
         let target_dir = target_directory.unwrap_or_else(|| project_root.clone());
-        
+
         Self {
             ai_client,
             config,
@@ -46,13 +46,16 @@ impl ReviseProcessor {
     }
 
     pub async fn run(&self) -> Result<Vec<ProcessingResult>> {
-        info!("Starting revision process for directory: {:?}", self.target_directory);
-        
+        info!(
+            "Starting revision process for directory: {:?}",
+            self.target_directory
+        );
+
         let documents = self.discover_documents()?;
         info!("Found {} documents to revise", documents.len());
 
         let mut results = Vec::new();
-        
+
         for document_path in documents {
             match self.revise_document(&document_path).await {
                 Ok(result) => {
@@ -74,9 +77,7 @@ impl ReviseProcessor {
         let mut documents = Vec::new();
 
         // Common documentation file extensions
-        let extensions = vec![
-            "md", "txt", "rst", "asciidoc", "adoc", "doc", "docx",
-        ];
+        let extensions = vec!["md", "txt", "rst", "asciidoc", "adoc", "doc", "docx"];
 
         for entry in WalkDir::new(&self.target_directory)
             .follow_links(true)
@@ -92,9 +93,12 @@ impl ReviseProcessor {
             let path = entry.path();
 
             // Skip directories and hidden files
-            if path.is_dir() || path.file_name()
-                .map(|f| f.to_string_lossy().starts_with('.'))
-                .unwrap_or(false) {
+            if path.is_dir()
+                || path
+                    .file_name()
+                    .map(|f| f.to_string_lossy().starts_with('.'))
+                    .unwrap_or(false)
+            {
                 continue;
             }
 
@@ -114,7 +118,7 @@ impl ReviseProcessor {
 
     async fn revise_document(&self, path: &Path) -> Result<ProcessingResult> {
         info!("Revising document: {:?}", path);
-        
+
         let content = fs::read_to_string(path)
             .map_err(|e| GoglzError::ProcessingFailed(format!("Failed to read file: {}", e)))?;
 
@@ -131,19 +135,26 @@ impl ReviseProcessor {
         self.create_backup(path, &content)?;
 
         // Write revised content
-        fs::write(path, &improved_content)
-            .map_err(|e| GoglzError::ProcessingFailed(format!("Failed to write revised file: {}", e)))?;
+        fs::write(path, &improved_content).map_err(|e| {
+            GoglzError::ProcessingFailed(format!("Failed to write revised file: {}", e))
+        })?;
 
         // Handle multi-language generation if enabled
-        let enabled_languages: Vec<String> = self.config.languages
+        let enabled_languages: Vec<String> = self
+            .config
+            .languages
             .iter()
             .filter(|lang| lang.enabled)
             .map(|lang| lang.name.clone())
             .collect();
 
         if !enabled_languages.is_empty() {
-            info!("Generating translations for {} languages", enabled_languages.len());
-            self.generate_translations(path, &improved_content, &enabled_languages).await?;
+            info!(
+                "Generating translations for {} languages",
+                enabled_languages.len()
+            );
+            self.generate_translations(path, &improved_content, &enabled_languages)
+                .await?;
         }
 
         // Return processing result
@@ -153,53 +164,77 @@ impl ReviseProcessor {
             timestamp: Utc::now(),
             conceptualization: None,
             clarity_improvement: None, // Could be enhanced to track changes
-            processing_time_ms: 0, // Could be enhanced to track timing
+            processing_time_ms: 0,     // Could be enhanced to track timing
             status: crate::processor::ProcessingStatus::Completed,
         })
     }
 
-    async fn generate_translations(&self, original_path: &Path, content: &str, languages: &[String]) -> Result<()> {
+    async fn generate_translations(
+        &self,
+        original_path: &Path,
+        content: &str,
+        languages: &[String],
+    ) -> Result<()> {
         // Perform parallel translation
-        let translations = self.ai_client.translate_document_parallel(content, languages).await?;
-        
+        let translations = self
+            .ai_client
+            .translate_document_parallel(content, languages)
+            .await?;
+
         info!("Successfully generated {} translations", translations.len());
 
         // Save each translation with language-specific filename
         for (lang_name, translated_content) in translations {
-            let lang_config = self.config.languages
+            let lang_config = self
+                .config
+                .languages
                 .iter()
                 .find(|l| l.name == lang_name)
-                .ok_or_else(|| GoglzError::ProcessingFailed(format!("Language config not found: {}", lang_name)))?;
+                .ok_or_else(|| {
+                    GoglzError::ProcessingFailed(format!(
+                        "Language config not found: {}",
+                        lang_name
+                    ))
+                })?;
 
             let output_path = self.generate_language_output_path(original_path, lang_config)?;
-            
-            fs::write(&output_path, translated_content)
-                .map_err(|e| GoglzError::ProcessingFailed(format!("Failed to write translation: {}", e)))?;
-            
+
+            fs::write(&output_path, translated_content).map_err(|e| {
+                GoglzError::ProcessingFailed(format!("Failed to write translation: {}", e))
+            })?;
+
             info!("Saved {} translation: {:?}", lang_name, output_path);
         }
 
         Ok(())
     }
 
-    pub fn generate_language_output_path(&self, original_path: &Path, lang_config: &crate::config::LanguageConfig) -> Result<PathBuf> {
-        let filename = original_path.file_name()
+    pub fn generate_language_output_path(
+        &self,
+        original_path: &Path,
+        lang_config: &crate::config::LanguageConfig,
+    ) -> Result<PathBuf> {
+        let filename = original_path
+            .file_name()
             .and_then(|f| f.to_str())
             .ok_or_else(|| GoglzError::ProcessingFailed("Invalid filename".to_string()))?;
 
-        let extension = original_path.extension()
+        let extension = original_path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("md");
 
         let stem = filename.trim_end_matches(&format!(".{}", extension));
-        
+
         // Apply the output pattern from config
-        let output_filename = lang_config.output_pattern
+        let output_filename = lang_config
+            .output_pattern
             .replace("{filename}", stem)
             .replace("{lang}", &lang_config.code.to_lowercase())
             .replace("{ext}", extension);
 
-        let output_path = original_path.parent()
+        let output_path = original_path
+            .parent()
             .unwrap_or(Path::new("."))
             .join(output_filename);
 
@@ -226,10 +261,11 @@ impl ReviseProcessor {
 
         // Load local assets (relative to document)
         for asset in &self.config.local_assets {
-            let asset_path = document_path.parent()
+            let asset_path = document_path
+                .parent()
                 .unwrap_or(Path::new("."))
                 .join(&asset.path);
-            
+
             if asset_path.exists() {
                 if let Ok(content) = fs::read_to_string(&asset_path) {
                     context.push_str(&format!(
@@ -256,7 +292,10 @@ impl ReviseProcessor {
         prompt.push_str("Writing Style:\n");
         prompt.push_str(&format!("- Tone: {}\n", self.config.writing_style.tone));
         prompt.push_str(&format!("- Voice: {}\n", self.config.writing_style.voice));
-        prompt.push_str(&format!("- Audience: {}\n", self.config.writing_style.audience));
+        prompt.push_str(&format!(
+            "- Audience: {}\n",
+            self.config.writing_style.audience
+        ));
         prompt.push_str("Guidelines:\n");
         for guideline in &self.config.writing_style.guidelines {
             prompt.push_str(&format!("  - {}\n", guideline));
@@ -278,7 +317,10 @@ impl ReviseProcessor {
             prompt.push_str("  - Use code blocks for technical content\n");
         }
         if let Some(max_len) = self.config.formatting_rules.max_line_length {
-            prompt.push_str(&format!("  - Maximum line length: {} characters\n", max_len));
+            prompt.push_str(&format!(
+                "  - Maximum line length: {} characters\n",
+                max_len
+            ));
         }
         for custom_rule in &self.config.formatting_rules.custom_rules {
             prompt.push_str(&format!("  - {}\n", custom_rule));
@@ -305,12 +347,14 @@ impl ReviseProcessor {
     }
 
     pub fn create_backup(&self, path: &Path, content: &str) -> Result<()> {
-        let backup_path = path.with_extension(format!("{}.backup", 
-            path.extension().and_then(|e| e.to_str()).unwrap_or("bak")));
-        
+        let backup_path = path.with_extension(format!(
+            "{}.backup",
+            path.extension().and_then(|e| e.to_str()).unwrap_or("bak")
+        ));
+
         fs::write(&backup_path, content)
             .map_err(|e| GoglzError::ProcessingFailed(format!("Failed to create backup: {}", e)))?;
-        
+
         info!("Created backup at: {:?}", backup_path);
         Ok(())
     }

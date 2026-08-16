@@ -20,7 +20,10 @@ fn help_lists_all_subcommands() {
     assert!(output.status.success());
     let help = String::from_utf8_lossy(&output.stdout);
     for command in ["start", "stop", "status", "init-config", "revise"] {
-        assert!(help.contains(command), "missing `{command}` in --help output: {help}");
+        assert!(
+            help.contains(command),
+            "missing `{command}` in --help output: {help}"
+        );
     }
 }
 
@@ -39,10 +42,16 @@ fn revise_help_lists_directory_flag() {
 #[test]
 fn unknown_subcommand_fails_cleanly_with_nonzero_exit() {
     let home = tempfile::tempdir().unwrap();
-    let output = goglz_cmd(home.path()).arg("not-a-real-command").output().unwrap();
+    let output = goglz_cmd(home.path())
+        .arg("not-a-real-command")
+        .output()
+        .unwrap();
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!stderr.is_empty(), "clap should print a usage/error message to stderr");
+    assert!(
+        !stderr.is_empty(),
+        "clap should print a usage/error message to stderr"
+    );
 }
 
 #[test]
@@ -59,7 +68,10 @@ fn revise_rejects_unknown_flag() {
 fn status_with_no_running_daemon_exits_cleanly() {
     let home = tempfile::tempdir().unwrap();
     let output = goglz_cmd(home.path()).arg("status").output().unwrap();
-    assert!(output.status.success(), "status must exit 0 even with no daemon running");
+    assert!(
+        output.status.success(),
+        "status must exit 0 even with no daemon running"
+    );
 }
 
 #[test]
@@ -82,7 +94,10 @@ fn revise_directory_with_no_documents_processes_zero_and_touches_no_network() {
         String::from_utf8_lossy(&output.stderr)
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("Total documents processed: 0"), "stdout: {stdout}");
+    assert!(
+        stdout.contains("Total documents processed: 0"),
+        "stdout: {stdout}"
+    );
 }
 
 #[test]
@@ -99,5 +114,8 @@ fn revise_directory_leaves_non_document_files_untouched() {
         .unwrap();
 
     assert!(output.status.success());
-    assert_eq!(std::fs::read(&binary_path).unwrap(), vec![0u8, 159, 146, 150]);
+    assert_eq!(
+        std::fs::read(&binary_path).unwrap(),
+        vec![0u8, 159, 146, 150]
+    );
 }

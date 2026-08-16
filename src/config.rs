@@ -54,9 +54,9 @@ pub struct ReviseConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LanguageConfig {
-    pub code: String,        // ISO language code (e.g., "en", "es", "zh")
-    pub name: String,        // Full language name (e.g., "English", "Spanish", "Chinese")
-    pub enabled: bool,      // Whether this language is enabled for translation
+    pub code: String,           // ISO language code (e.g., "en", "es", "zh")
+    pub name: String,           // Full language name (e.g., "English", "Spanish", "Chinese")
+    pub enabled: bool,          // Whether this language is enabled for translation
     pub output_pattern: String, // Output filename pattern (e.g., "{filename}_{lang}.{ext}")
 }
 
@@ -141,7 +141,7 @@ pub fn expand_path(path: &PathBuf) -> PathBuf {
 
 pub fn load_revise_config(project_root: &Path) -> Result<ReviseConfig> {
     let config_path = project_root.join("goglz.yaml");
-    
+
     if !config_path.exists() {
         tracing::warn!("goglz.yaml not found at {:?}, using defaults", config_path);
         return Ok(default_revise_config());

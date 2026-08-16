@@ -45,7 +45,11 @@ pub fn test_config(output_directory: PathBuf, max_file_size_mb: u64) -> Config {
     }
 }
 
-pub fn monitored_directory(path: PathBuf, file_patterns: Vec<&str>, recursive: bool) -> MonitoredDirectory {
+pub fn monitored_directory(
+    path: PathBuf,
+    file_patterns: Vec<&str>,
+    recursive: bool,
+) -> MonitoredDirectory {
     MonitoredDirectory {
         path,
         file_patterns: file_patterns.into_iter().map(String::from).collect(),
@@ -83,7 +87,12 @@ pub fn minimal_revise_config() -> ReviseConfig {
     }
 }
 
-pub fn language_config(code: &str, name: &str, enabled: bool, output_pattern: &str) -> LanguageConfig {
+pub fn language_config(
+    code: &str,
+    name: &str,
+    enabled: bool,
+    output_pattern: &str,
+) -> LanguageConfig {
     LanguageConfig {
         code: code.to_string(),
         name: name.to_string(),

@@ -69,7 +69,7 @@ impl AiClient {
 
     pub async fn revise_document(&self, prompt: &str) -> Result<String> {
         let response = self.call_groq(prompt).await?;
-        
+
         // Clean up response - remove any markdown code blocks if present
         let cleaned = response
             .trim_start_matches("```")
@@ -77,13 +77,17 @@ impl AiClient {
             .trim_start_matches("```text")
             .trim_end_matches("```")
             .trim();
-        
+
         Ok(cleaned.to_string())
     }
 
-    pub async fn translate_document_parallel(&self, content: &str, target_languages: &[String]) -> Result<Vec<(String, String)>> {
+    pub async fn translate_document_parallel(
+        &self,
+        content: &str,
+        target_languages: &[String],
+    ) -> Result<Vec<(String, String)>> {
         use futures::future::join_all;
-        
+
         let translation_tasks: Vec<_> = target_languages
             .iter()
             .map(|lang| {
@@ -95,9 +99,9 @@ impl AiClient {
                 }
             })
             .collect();
-        
+
         let results = join_all(translation_tasks).await;
-        
+
         let mut translations = Vec::new();
         for (lang, result) in results {
             match result {
@@ -108,7 +112,7 @@ impl AiClient {
                 }
             }
         }
-        
+
         Ok(translations)
     }
 
@@ -122,7 +126,7 @@ impl AiClient {
         );
 
         let response = self.call_groq(&prompt).await?;
-        
+
         // Clean up response - remove any markdown code blocks if present
         let cleaned = response
             .trim_start_matches("```")
@@ -130,7 +134,7 @@ impl AiClient {
             .trim_start_matches("```text")
             .trim_end_matches("```")
             .trim();
-        
+
         Ok(cleaned.to_string())
     }
 
@@ -153,8 +157,14 @@ impl AiClient {
 
         let response = self
             .client
-            .post(&format!("{}/chat/completions", self.gpt_oss_config.api_endpoint))
-            .header("Authorization", format!("Bearer {}", self.gpt_oss_config.api_key))
+            .post(&format!(
+                "{}/chat/completions",
+                self.gpt_oss_config.api_endpoint
+            ))
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.gpt_oss_config.api_key),
+            )
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
@@ -194,8 +204,14 @@ impl AiClient {
 
         let response = self
             .client
-            .post(&format!("{}/chat/completions", self.groq_config.api_endpoint))
-            .header("Authorization", format!("Bearer {}", self.groq_config.api_key))
+            .post(&format!(
+                "{}/chat/completions",
+                self.groq_config.api_endpoint
+            ))
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.groq_config.api_key),
+            )
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
@@ -226,15 +242,21 @@ impl AiClient {
                     .to_string(),
                 key_concepts: json["key_concepts"]
                     .as_array()
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default(),
                 themes: json["themes"]
                     .as_array()
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default(),
-                clarity_score: json["clarity_score"]
-                    .as_f64()
-                    .unwrap_or(0.5) as f32,
+                clarity_score: json["clarity_score"].as_f64().unwrap_or(0.5) as f32,
             });
         }
 
@@ -279,7 +301,11 @@ impl AiClient {
         })
     }
 
-    fn parse_clarity_improvement(&self, original: &str, response: &str) -> Result<ClarityImprovement> {
+    fn parse_clarity_improvement(
+        &self,
+        original: &str,
+        response: &str,
+    ) -> Result<ClarityImprovement> {
         // Try to extract JSON from response
         let json_str = response
             .trim_start_matches("```json")
@@ -296,11 +322,13 @@ impl AiClient {
                     .to_string(),
                 changes_made: json["changes_made"]
                     .as_array()
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default(),
-                clarity_improvement: json["clarity_improvement"]
-                    .as_f64()
-                    .unwrap_or(1.0) as f32,
+                clarity_improvement: json["clarity_improvement"].as_f64().unwrap_or(1.0) as f32,
             });
         }
 

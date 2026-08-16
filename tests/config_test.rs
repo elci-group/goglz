@@ -152,7 +152,11 @@ fn missing_goglz_yaml_falls_back_to_defaults_without_error() {
 #[test]
 fn malformed_goglz_yaml_is_a_clean_error_not_a_panic() {
     let dir = tempfile::tempdir().expect("tempdir");
-    std::fs::write(dir.path().join("goglz.yaml"), "purpose: [this is not valid: yaml").unwrap();
+    std::fs::write(
+        dir.path().join("goglz.yaml"),
+        "purpose: [this is not valid: yaml",
+    )
+    .unwrap();
 
     let result = load_revise_config(dir.path());
     assert!(result.is_err(), "malformed YAML must not parse");

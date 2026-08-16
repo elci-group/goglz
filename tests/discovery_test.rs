@@ -6,8 +6,8 @@ mod support;
 use goglz::config::Config;
 use goglz::monitor::DirectoryMonitor;
 use goglz::revise::ReviseProcessor;
-use notify::{Event, EventKind};
 use notify::event::{CreateKind, ModifyKind, RemoveKind};
+use notify::{Event, EventKind};
 use std::fs;
 use std::path::PathBuf;
 
@@ -32,15 +32,27 @@ fn extension_glob_matches_only_that_extension() {
 
 #[test]
 fn prefix_and_suffix_glob_matches_both_ends() {
-    assert!(DirectoryMonitor::matches_pattern("draft-1.md", "draft-*.md"));
-    assert!(!DirectoryMonitor::matches_pattern("final-1.md", "draft-*.md"));
-    assert!(!DirectoryMonitor::matches_pattern("draft-1.txt", "draft-*.md"));
+    assert!(DirectoryMonitor::matches_pattern(
+        "draft-1.md",
+        "draft-*.md"
+    ));
+    assert!(!DirectoryMonitor::matches_pattern(
+        "final-1.md",
+        "draft-*.md"
+    ));
+    assert!(!DirectoryMonitor::matches_pattern(
+        "draft-1.txt",
+        "draft-*.md"
+    ));
 }
 
 #[test]
 fn exact_pattern_requires_exact_match() {
     assert!(DirectoryMonitor::matches_pattern("README.md", "README.md"));
-    assert!(!DirectoryMonitor::matches_pattern("README.md.bak", "README.md"));
+    assert!(!DirectoryMonitor::matches_pattern(
+        "README.md.bak",
+        "README.md"
+    ));
 }
 
 // ---- monitor::DirectoryMonitor::process_event_static -------------------
@@ -67,7 +79,10 @@ fn process_event_static_matches_file_in_monitored_dir_with_pattern() {
     assert!(result.is_some());
     let result = result.unwrap();
     assert_eq!(result.path, file);
-    assert!(matches!(result.event_type, goglz::monitor::FileEventType::Created));
+    assert!(matches!(
+        result.event_type,
+        goglz::monitor::FileEventType::Created
+    ));
 }
 
 #[test]
@@ -137,7 +152,10 @@ fn process_event_static_maps_remove_to_deleted() {
 
     let event = notify_event(EventKind::Remove(RemoveKind::File), file);
     let result = DirectoryMonitor::process_event_static(event, &config).unwrap();
-    assert!(matches!(result.event_type, goglz::monitor::FileEventType::Deleted));
+    assert!(matches!(
+        result.event_type,
+        goglz::monitor::FileEventType::Deleted
+    ));
 }
 
 // ---- revise::ReviseProcessor::discover_documents ------------------------
@@ -179,7 +197,12 @@ fn discover_documents_finds_supported_extensions_recursively() {
 
     let names: Vec<String> = docs
         .iter()
-        .map(|p| p.strip_prefix(dir.path()).unwrap().to_string_lossy().to_string())
+        .map(|p| {
+            p.strip_prefix(dir.path())
+                .unwrap()
+                .to_string_lossy()
+                .to_string()
+        })
         .collect();
 
     for expected in [
@@ -192,7 +215,10 @@ fn discover_documents_finds_supported_extensions_recursively() {
         "legacy2.docx",
         "nested/deep/doc.rst",
     ] {
-        assert!(names.contains(&expected.to_string()), "missing {expected}: got {names:?}");
+        assert!(
+            names.contains(&expected.to_string()),
+            "missing {expected}: got {names:?}"
+        );
     }
     assert!(!names.iter().any(|n| n.contains("data.bin")));
     assert!(!names.iter().any(|n| n.contains("image.png")));
@@ -241,10 +267,19 @@ fn discover_documents_prunes_hidden_directories_entirely() {
     let docs = processor.discover_documents().unwrap();
     let names: Vec<String> = docs
         .iter()
-        .map(|p| p.strip_prefix(dir.path()).unwrap().to_string_lossy().to_string())
+        .map(|p| {
+            p.strip_prefix(dir.path())
+                .unwrap()
+                .to_string_lossy()
+                .to_string()
+        })
         .collect();
 
-    assert_eq!(names, vec!["real-doc.md".to_string()], "hidden-dir contents leaked into discovery: {names:?}");
+    assert_eq!(
+        names,
+        vec!["real-doc.md".to_string()],
+        "hidden-dir contents leaked into discovery: {names:?}"
+    );
 }
 
 #[test]

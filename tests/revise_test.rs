@@ -54,7 +54,10 @@ async fn ai_failure_leaves_original_file_and_no_backup_behind() {
     // so it returns Ok even though the AI endpoint is unreachable.
     let results = processor.run().await.expect("run() must not itself error");
 
-    assert!(results.is_empty(), "no document should have been successfully revised");
+    assert!(
+        results.is_empty(),
+        "no document should have been successfully revised"
+    );
     assert_eq!(
         fs::read_to_string(&path).unwrap(),
         original,
@@ -92,7 +95,9 @@ fn generate_language_output_path_substitutes_filename_lang_and_ext() {
     let original = dir.path().join("notes.md");
     let lang = support::language_config("ES", "Spanish", true, "{filename}_{lang}.{ext}");
 
-    let out = processor.generate_language_output_path(&original, &lang).unwrap();
+    let out = processor
+        .generate_language_output_path(&original, &lang)
+        .unwrap();
     assert_eq!(out, dir.path().join("notes_es.md"));
 }
 
@@ -103,7 +108,9 @@ fn generate_language_output_path_lowercases_language_code() {
     let original = dir.path().join("readme.txt");
     let lang = support::language_config("FR", "French", true, "{filename}.{lang}.{ext}");
 
-    let out = processor.generate_language_output_path(&original, &lang).unwrap();
+    let out = processor
+        .generate_language_output_path(&original, &lang)
+        .unwrap();
     assert_eq!(out, dir.path().join("readme.fr.txt"));
 }
 
@@ -117,7 +124,9 @@ fn generate_language_output_path_handles_multi_dot_filenames() {
     // extension() only sees the last component ("gz"); stem is
     // "archive.tar" - documenting actual current behavior for a
     // multi-dot filename.
-    let out = processor.generate_language_output_path(&original, &lang).unwrap();
+    let out = processor
+        .generate_language_output_path(&original, &lang)
+        .unwrap();
     assert_eq!(out, dir.path().join("archive.tar.de.gz"));
 }
 
@@ -128,7 +137,9 @@ fn generate_language_output_path_falls_back_to_md_for_extensionless_files() {
     let original = dir.path().join("README");
     let lang = support::language_config("ja", "Japanese", true, "{filename}_{lang}.{ext}");
 
-    let out = processor.generate_language_output_path(&original, &lang).unwrap();
+    let out = processor
+        .generate_language_output_path(&original, &lang)
+        .unwrap();
     assert_eq!(out, dir.path().join("README_ja.md"));
 }
 
@@ -144,5 +155,8 @@ fn discover_documents_is_reachable_through_run_for_backup_regression_coverage() 
 
     let processor = processor_for(dir.path(), dir.path());
     let docs = processor.discover_documents().unwrap();
-    assert!(docs.is_empty(), "hidden-directory content must not be discovered: {docs:?}");
+    assert!(
+        docs.is_empty(),
+        "hidden-directory content must not be discovered: {docs:?}"
+    );
 }

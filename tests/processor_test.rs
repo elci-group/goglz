@@ -24,11 +24,17 @@ async fn oversized_file_is_skipped_not_processed() {
     // 2 MiB, comfortably over the 1 MB limit (size check truncates to whole MB).
     std::fs::write(&path, vec![b'a'; 2 * 1024 * 1024]).unwrap();
 
-    let result = processor.process_file(&path).await.expect("size check must not error");
+    let result = processor
+        .process_file(&path)
+        .await
+        .expect("size check must not error");
 
     match result.status {
         ProcessingStatus::Skipped(reason) => {
-            assert!(reason.contains("too large") || reason.contains("MB"), "unexpected reason: {reason}");
+            assert!(
+                reason.contains("too large") || reason.contains("MB"),
+                "unexpected reason: {reason}"
+            );
         }
         other => panic!("expected Skipped, got {other:?}"),
     }
@@ -133,7 +139,10 @@ async fn deleted_event_removes_path_from_pending_queue() {
 
     processor
         .handle_file_event(
-            FileEvent { path: path.clone(), event_type: FileEventType::Created },
+            FileEvent {
+                path: path.clone(),
+                event_type: FileEventType::Created,
+            },
             debounce,
         )
         .await;
@@ -141,7 +150,10 @@ async fn deleted_event_removes_path_from_pending_queue() {
 
     processor
         .handle_file_event(
-            FileEvent { path, event_type: FileEventType::Deleted },
+            FileEvent {
+                path,
+                event_type: FileEventType::Deleted,
+            },
             debounce,
         )
         .await;

@@ -1,10 +1,10 @@
-use crate::config::{Config, expand_path};
+use crate::config::{expand_path, Config};
 use crate::error::Result;
-use notify::{Event, EventKind, RecursiveMode, Watcher, recommended_watcher};
+use notify::{recommended_watcher, Event, EventKind, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use tokio::sync::mpsc;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct FileEvent {
@@ -26,7 +26,10 @@ pub struct DirectoryMonitor {
 
 impl DirectoryMonitor {
     pub fn new(config: Config, event_sender: mpsc::UnboundedSender<FileEvent>) -> Result<Self> {
-        Ok(Self { config, event_sender })
+        Ok(Self {
+            config,
+            event_sender,
+        })
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -35,7 +38,7 @@ impl DirectoryMonitor {
 
         for dir in &self.config.directories {
             let expanded_path = expand_path(&dir.path);
-            
+
             if !expanded_path.exists() {
                 warn!("Directory does not exist: {:?}", expanded_path);
                 continue;
@@ -48,7 +51,10 @@ impl DirectoryMonitor {
             };
 
             watcher.watch(&expanded_path, mode)?;
-            info!("Watching directory: {:?} (recursive: {})", expanded_path, dir.recursive);
+            info!(
+                "Watching directory: {:?} (recursive: {})",
+                expanded_path, dir.recursive
+            );
         }
 
         let event_sender = self.event_sender.clone();
@@ -58,7 +64,9 @@ impl DirectoryMonitor {
             while let Ok(event) = rx.recv() {
                 match event {
                     Ok(event) => {
-                        if let Some(file_event) = DirectoryMonitor::process_event_static(event, &config) {
+                        if let Some(file_event) =
+                            DirectoryMonitor::process_event_static(event, &config)
+                        {
                             if let Err(e) = event_sender.send(file_event) {
                                 error!("Failed to send file event: {:?}", e);
                             }
@@ -90,9 +98,10 @@ impl DirectoryMonitor {
 
         let file_name = path.file_name()?.to_str()?;
         let matches_pattern = monitored_dir.file_patterns.is_empty()
-            || monitored_dir.file_patterns.iter().any(|pattern| {
-                DirectoryMonitor::matches_pattern(file_name, pattern)
-            });
+            || monitored_dir
+                .file_patterns
+                .iter()
+                .any(|pattern| DirectoryMonitor::matches_pattern(file_name, pattern));
 
         if !matches_pattern {
             return None;
