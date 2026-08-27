@@ -8,5 +8,6 @@ pub mod ai_client;
 pub mod config;
 pub mod error;
 pub mod monitor;
+pub mod portfolio;
 pub mod processor;
 pub mod revise;

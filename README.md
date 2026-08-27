@@ -154,6 +154,37 @@ goglz stop
 goglz init-config
 ```
 
+## Portfolio Mode
+
+Goglz can operate across every project it detects under your home directory by
+using the `--portfolio` flag. A project is detected when a directory contains a
+`goglz.yaml` file.
+
+### Supported commands
+
+- `goglz --portfolio revise` — revise documents in every detected project.
+- `goglz --portfolio start` — start the daemon watching every detected project.
+
+Commands without a directory context (`stop`, `status`, `init-config`) accept
+`--portfolio` but will warn that the flag has no effect.
+
+### Project discovery rules
+
+- Projects are discovered up to 4 directory levels deep under your home directory.
+- Hidden directories (names starting with `.`) are ignored.
+- Each `revise` subcommand run in portfolio mode loads the project's own `goglz.yaml`.
+- `start --portfolio` monitors each project recursively for `*.md`, `*.txt`, and `*.rst` files.
+
+### Examples
+
+```bash
+# Revise all documents across every goglz project in your home directory
+goglz --portfolio revise
+
+# Start the daemon watching every detected project
+goglz --portfolio start
+```
+
 ## Processing Pipeline
 
 ### Workflow

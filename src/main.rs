@@ -1,9 +1,10 @@
 use clap::{Parser, Subcommand};
 use daemonize::Daemonize;
 use goglz::ai_client::AiClient;
-use goglz::config::{load_config, load_revise_config};
+use goglz::config::{load_config, load_revise_config, MonitoredDirectory};
 use goglz::error::{GoglzError, Result};
 use goglz::monitor::DirectoryMonitor;
+use goglz::portfolio::{default_portfolio_patterns, discover_projects_default};
 use goglz::processor::DocumentProcessor;
 use goglz::revise::ReviseProcessor;
 use std::fs::File;
@@ -16,6 +17,10 @@ use tracing::info;
 #[command(name = "goglz")]
 #[command(about = "A daemon that monitors directories and improves document clarity using AI", long_about = None)]
 struct Cli {
+    /// Apply the command across all goglz projects detected under the home directory
+    #[arg(long, global = true)]
+    portfolio: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -48,28 +53,107 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Start { foreground } => {
-            start_daemon(foreground).await?;
+            if cli.portfolio {
+                let overrides = build_portfolio_directories()?;
+                start_daemon(foreground, Some(overrides)).await?;
+            } else {
+                start_daemon(foreground, None).await?;
+            }
         }
         Commands::Stop => {
+            warn_ignored_portfolio(cli.portfolio, "stop");
             stop_daemon()?;
         }
         Commands::Status => {
+            warn_ignored_portfolio(cli.portfolio, "status");
             show_status()?;
         }
         Commands::InitConfig => {
+            warn_ignored_portfolio(cli.portfolio, "init-config");
             init_config()?;
         }
         Commands::Revise { directory } => {
-            revise_documents(directory).await?;
+            if cli.portfolio {
+                revise_portfolio().await?;
+            } else {
+                revise_documents(directory).await?;
+            }
         }
     }
 
     Ok(())
 }
 
-async fn start_daemon(foreground: bool) -> Result<()> {
+fn home_directory() -> Result<PathBuf> {
+    dirs::home_dir().ok_or_else(|| {
+        GoglzError::ProcessingFailed("Could not determine home directory".to_string())
+    })
+}
+
+fn build_portfolio_directories() -> Result<Vec<MonitoredDirectory>> {
+    let home = home_directory()?;
+    let projects = discover_projects_default(&home)?;
+
+    if projects.is_empty() {
+        println!("Warning: no goglz projects found under {:?}", home);
+    } else {
+        println!("Portfolio mode: discovered {} project(s)", projects.len());
+        for project in &projects {
+            println!("  - {:?}", project);
+        }
+    }
+
+    let patterns = default_portfolio_patterns();
+    Ok(projects
+        .into_iter()
+        .map(|path| MonitoredDirectory {
+            path,
+            file_patterns: patterns.clone(),
+            recursive: true,
+        })
+        .collect())
+}
+
+fn warn_ignored_portfolio(portfolio: bool, command: &str) {
+    if portfolio {
+        println!(
+            "Warning: --portfolio has no effect on the '{}' command",
+            command
+        );
+    }
+}
+
+async fn revise_portfolio() -> Result<()> {
+    let home = home_directory()?;
+    let projects = discover_projects_default(&home)?;
+
+    if projects.is_empty() {
+        println!("Warning: no goglz projects found under {:?}", home);
+        return Ok(());
+    }
+
+    println!("Portfolio mode: revising {} project(s)", projects.len());
+    for project in &projects {
+        println!("\n--- Project: {:?} ---", project);
+        if let Err(e) = revise_documents(Some(project.clone())).await {
+            eprintln!("Failed to revise {:?}: {}", project, e);
+            // Continue with remaining projects.
+        }
+    }
+
+    Ok(())
+}
+
+async fn start_daemon(
+    foreground: bool,
+    portfolio_directories: Option<Vec<MonitoredDirectory>>,
+) -> Result<()> {
     // Load configuration
-    let config = load_config()?;
+    let mut config = load_config()?;
+
+    if let Some(directories) = portfolio_directories {
+        config.directories = directories;
+    }
 
     // Initialize tracing
     tracing_subscriber::fmt()
@@ -197,7 +281,8 @@ fn init_config() -> Result<()> {
         }
     }
 
-    let example_config = r#"# Goglz Configuration File
+    let example_config = format!(
+        r#"# Goglz Configuration File
 
 # Directories to monitor
 [[directories]]
@@ -213,13 +298,13 @@ recursive = true
 # GPT OSS Configuration (for conceptualization)
 [gpt_oss]
 api_endpoint = "https://api.gpt-oss.com/v1"
-api_key = "your-gpt-oss-api-key"
+api_key = "{}"
 model_120b = "gpt-oss-120b"
 model_20b = "gpt-oss-20b"
 
 # Groq Configuration (for LLaMA inference)
 [groq]
-api_key = "your-groq-api-key"
+api_key = "{}"
 model = "llama3-70b-8192"
 api_endpoint = "https://api.groq.com/openai/v1"
 
@@ -229,7 +314,10 @@ output_directory = "~/.goglz_output"
 max_file_size_mb = 10
 batch_size = 5
 debounce_interval_ms = 2000
-"#;
+"#,
+        std::env::var("GPT_OSS_API_KEY").unwrap_or_default(),
+        std::env::var("GROQ_API_KEY").unwrap_or_default()
+    );
 
     std::fs::write(&config_path, example_config)?;
     println!("Example configuration written to {:?}", config_path);
@@ -239,10 +327,12 @@ debounce_interval_ms = 2000
 }
 
 async fn revise_documents(directory: Option<PathBuf>) -> Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
+    // Initialize tracing if it has not already been set up. In portfolio mode
+    // this function is called once per project, so we must tolerate a repeat
+    // initialization attempt.
+    let _ = tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
-        .init();
+        .try_init();
 
     // Determine project root (current directory or parent of target directory)
     let target_dir = directory.unwrap_or_else(|| std::env::current_dir().unwrap());
