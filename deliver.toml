@@ -1,0 +1,26 @@
+[[file]]
+path = "src/planning.rs"
+required = true
+forbid_regex = ["TODO", "FIXME", "unimplemented!"]
+require_regex = ["Padagonia", "monetisation", "pub async fn revise"]
+
+[[file]]
+path = "tests/planning_test.rs"
+required = true
+
+[[file]]
+path = "docs/planning.md"
+required = true
+
+[[command]]
+name = "cargo test"
+cmd = ["cargo", "test"]
+expect_exit = 0
+timeout_secs = 300
+stdout_contains = ["test result: ok"]
+
+[[command]]
+name = "cargo build"
+cmd = ["cargo", "build"]
+expect_exit = 0
+timeout_secs = 300

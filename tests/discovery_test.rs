@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: MIT
 //! File discovery / pattern matching, covering both the live-monitor glob
 //! matcher (`monitor::DirectoryMonitor`) and the `revise` walker
 //! (`revise::ReviseProcessor::discover_documents`).
+// `let mut x = Default::default(); x.field = ...;` reads more clearly here
+// than a full struct literal for these single-field test fixtures.
+#![allow(clippy::field_reassign_with_default)]
 mod support;
 
 use goglz::config::Config;
@@ -62,10 +66,11 @@ fn notify_event(kind: EventKind, path: PathBuf) -> Event {
 }
 
 #[test]
-fn process_event_static_matches_file_in_monitored_dir_with_pattern() {
-    let dir = tempfile::tempdir().unwrap();
+fn process_event_static_matches_file_in_monitored_dir_with_pattern(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
     let file = dir.path().join("notes.md");
-    fs::write(&file, "hello").unwrap();
+    fs::write(&file, "hello")?;
 
     let mut config = Config::default();
     config.directories = vec![support::monitored_directory(
@@ -77,19 +82,20 @@ fn process_event_static_matches_file_in_monitored_dir_with_pattern() {
     let event = notify_event(EventKind::Create(CreateKind::File), file.clone());
     let result = DirectoryMonitor::process_event_static(event, &config);
     assert!(result.is_some());
-    let result = result.unwrap();
+    let result = result.ok_or("expected event to match")?;
     assert_eq!(result.path, file);
     assert!(matches!(
         result.event_type,
         goglz::monitor::FileEventType::Created
     ));
+    Ok(())
 }
 
 #[test]
-fn process_event_static_ignores_non_matching_pattern() {
-    let dir = tempfile::tempdir().unwrap();
+fn process_event_static_ignores_non_matching_pattern() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
     let file = dir.path().join("notes.bin");
-    fs::write(&file, "hello").unwrap();
+    fs::write(&file, "hello")?;
 
     let mut config = Config::default();
     config.directories = vec![support::monitored_directory(
@@ -100,14 +106,16 @@ fn process_event_static_ignores_non_matching_pattern() {
 
     let event = notify_event(EventKind::Modify(ModifyKind::Any), file);
     assert!(DirectoryMonitor::process_event_static(event, &config).is_none());
+    Ok(())
 }
 
 #[test]
-fn process_event_static_ignores_paths_outside_monitored_dirs() {
-    let monitored = tempfile::tempdir().unwrap();
-    let other = tempfile::tempdir().unwrap();
+fn process_event_static_ignores_paths_outside_monitored_dirs(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let monitored = tempfile::tempdir()?;
+    let other = tempfile::tempdir()?;
     let file = other.path().join("notes.md");
-    fs::write(&file, "hello").unwrap();
+    fs::write(&file, "hello")?;
 
     let mut config = Config::default();
     config.directories = vec![support::monitored_directory(
@@ -118,13 +126,14 @@ fn process_event_static_ignores_paths_outside_monitored_dirs() {
 
     let event = notify_event(EventKind::Create(CreateKind::File), file);
     assert!(DirectoryMonitor::process_event_static(event, &config).is_none());
+    Ok(())
 }
 
 #[test]
-fn process_event_static_ignores_directories() {
-    let dir = tempfile::tempdir().unwrap();
+fn process_event_static_ignores_directories() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
     let subdir = dir.path().join("notes.md"); // named like a file but IS a dir
-    fs::create_dir(&subdir).unwrap();
+    fs::create_dir(&subdir)?;
 
     let mut config = Config::default();
     config.directories = vec![support::monitored_directory(
@@ -135,13 +144,14 @@ fn process_event_static_ignores_directories() {
 
     let event = notify_event(EventKind::Create(CreateKind::Folder), subdir);
     assert!(DirectoryMonitor::process_event_static(event, &config).is_none());
+    Ok(())
 }
 
 #[test]
-fn process_event_static_maps_remove_to_deleted() {
-    let dir = tempfile::tempdir().unwrap();
+fn process_event_static_maps_remove_to_deleted() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
     let file = dir.path().join("notes.md");
-    fs::write(&file, "hello").unwrap();
+    fs::write(&file, "hello")?;
 
     let mut config = Config::default();
     config.directories = vec![support::monitored_directory(
@@ -151,11 +161,13 @@ fn process_event_static_maps_remove_to_deleted() {
     )];
 
     let event = notify_event(EventKind::Remove(RemoveKind::File), file);
-    let result = DirectoryMonitor::process_event_static(event, &config).unwrap();
+    let result =
+        DirectoryMonitor::process_event_static(event, &config).ok_or("expected event to match")?;
     assert!(matches!(
         result.event_type,
         goglz::monitor::FileEventType::Deleted
     ));
+    Ok(())
 }
 
 // ---- revise::ReviseProcessor::discover_documents ------------------------
@@ -172,9 +184,10 @@ fn revise_processor_for(dir: &std::path::Path) -> ReviseProcessor {
 }
 
 #[test]
-fn discover_documents_finds_supported_extensions_recursively() {
-    let dir = tempfile::tempdir().unwrap();
-    fs::create_dir_all(dir.path().join("nested/deep")).unwrap();
+fn discover_documents_finds_supported_extensions_recursively(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    fs::create_dir_all(dir.path().join("nested/deep"))?;
 
     for (rel, content) in [
         ("notes.md", "# Notes"),
@@ -186,24 +199,20 @@ fn discover_documents_finds_supported_extensions_recursively() {
         ("legacy2.docx", "legacy2"),
         ("nested/deep/doc.rst", "deep doc"),
     ] {
-        fs::write(dir.path().join(rel), content).unwrap();
+        fs::write(dir.path().join(rel), content)?;
     }
     // Non-matching extensions must be excluded.
-    fs::write(dir.path().join("data.bin"), [0u8, 1, 2]).unwrap();
-    fs::write(dir.path().join("image.png"), [0u8, 1, 2]).unwrap();
+    fs::write(dir.path().join("data.bin"), [0u8, 1, 2])?;
+    fs::write(dir.path().join("image.png"), [0u8, 1, 2])?;
 
     let processor = revise_processor_for(dir.path());
-    let docs = processor.discover_documents().unwrap();
+    let docs = processor.discover_documents();
 
-    let names: Vec<String> = docs
-        .iter()
-        .map(|p| {
-            p.strip_prefix(dir.path())
-                .unwrap()
-                .to_string_lossy()
-                .to_string()
-        })
-        .collect();
+    let mut names = Vec::new();
+    for p in &docs {
+        let rel = p.strip_prefix(dir.path())?;
+        names.push(rel.to_string_lossy().to_string());
+    }
 
     for expected in [
         "notes.md",
@@ -222,27 +231,33 @@ fn discover_documents_finds_supported_extensions_recursively() {
     }
     assert!(!names.iter().any(|n| n.contains("data.bin")));
     assert!(!names.iter().any(|n| n.contains("image.png")));
+    Ok(())
 }
 
 #[test]
-fn discover_documents_skips_dotfiles_at_top_level() {
-    let dir = tempfile::tempdir().unwrap();
-    fs::write(dir.path().join(".env"), "SECRET=1").unwrap();
-    fs::write(dir.path().join(".hidden.md"), "hidden doc").unwrap();
-    fs::write(dir.path().join("visible.md"), "visible doc").unwrap();
+fn discover_documents_skips_dotfiles_at_top_level() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    fs::write(dir.path().join(".env"), "SECRET=1")?;
+    fs::write(dir.path().join(".hidden.md"), "hidden doc")?;
+    fs::write(dir.path().join("visible.md"), "visible doc")?;
 
     let processor = revise_processor_for(dir.path());
-    let docs = processor.discover_documents().unwrap();
-    let names: Vec<String> = docs
-        .iter()
-        .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
-        .collect();
+    let docs = processor.discover_documents();
+    let mut names = Vec::new();
+    for p in &docs {
+        let name = p
+            .file_name()
+            .ok_or("discovered path must have a file name")?;
+        names.push(name.to_string_lossy().to_string());
+    }
 
     assert_eq!(names, vec!["visible.md".to_string()]);
+    Ok(())
 }
 
 #[test]
-fn discover_documents_prunes_hidden_directories_entirely() {
+fn discover_documents_prunes_hidden_directories_entirely() -> Result<(), Box<dyn std::error::Error>>
+{
     // Regression test: files that live *inside* a hidden directory (like
     // `.git/`, `.github/`, or `.venv/`) must never be discovered, even
     // though the file's own name doesn't start with a dot. Before this was
@@ -250,41 +265,38 @@ fn discover_documents_prunes_hidden_directories_entirely() {
     // (`continue`), which does not stop WalkDir from still recursing into
     // it - so `.github/ISSUE_TEMPLATE/bug_report.md` was silently included
     // and would have been overwritten by `goglz revise`.
-    let dir = tempfile::tempdir().unwrap();
-    fs::create_dir_all(dir.path().join(".git/objects")).unwrap();
-    fs::create_dir_all(dir.path().join(".github/ISSUE_TEMPLATE")).unwrap();
-    fs::create_dir_all(dir.path().join(".venv/lib")).unwrap();
-    fs::write(dir.path().join(".git/config"), "[core]").unwrap();
+    let dir = tempfile::tempdir()?;
+    fs::create_dir_all(dir.path().join(".git/objects"))?;
+    fs::create_dir_all(dir.path().join(".github/ISSUE_TEMPLATE"))?;
+    fs::create_dir_all(dir.path().join(".venv/lib"))?;
+    fs::write(dir.path().join(".git/config"), "[core]")?;
     fs::write(
         dir.path().join(".github/ISSUE_TEMPLATE/bug_report.md"),
         "template",
-    )
-    .unwrap();
-    fs::write(dir.path().join(".venv/lib/README.txt"), "venv readme").unwrap();
-    fs::write(dir.path().join("real-doc.md"), "the only real doc").unwrap();
+    )?;
+    fs::write(dir.path().join(".venv/lib/README.txt"), "venv readme")?;
+    fs::write(dir.path().join("real-doc.md"), "the only real doc")?;
 
     let processor = revise_processor_for(dir.path());
-    let docs = processor.discover_documents().unwrap();
-    let names: Vec<String> = docs
-        .iter()
-        .map(|p| {
-            p.strip_prefix(dir.path())
-                .unwrap()
-                .to_string_lossy()
-                .to_string()
-        })
-        .collect();
+    let docs = processor.discover_documents();
+    let mut names = Vec::new();
+    for p in &docs {
+        let rel = p.strip_prefix(dir.path())?;
+        names.push(rel.to_string_lossy().to_string());
+    }
 
     assert_eq!(
         names,
         vec!["real-doc.md".to_string()],
         "hidden-dir contents leaked into discovery: {names:?}"
     );
+    Ok(())
 }
 
 #[test]
-fn discover_documents_on_empty_directory_returns_empty() {
-    let dir = tempfile::tempdir().unwrap();
+fn discover_documents_on_empty_directory_returns_empty() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
     let processor = revise_processor_for(dir.path());
-    assert!(processor.discover_documents().unwrap().is_empty());
+    assert!(processor.discover_documents().is_empty());
+    Ok(())
 }

@@ -137,3 +137,13 @@ languages:
     name: "Portuguese"
     enabled: false
     output_pattern: "{filename}_pt.{ext}"
+
+# Anti-hunking / document ventilation
+# Breaks long markdown sections into smaller chunks so downstream tools
+# (e.g., Ferret) don't flag the generated/amended docs as "large hunks".
+anti_hunking:
+  enabled: true
+  max_section_lines: 80
+  split_on_headings:
+    - "##"
+    - "###"

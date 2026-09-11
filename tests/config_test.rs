@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 //! Config parsing and `~` path expansion.
 //!
 //! `load_config()` hardcodes the path `~/.goglz` (the real user's home
@@ -39,8 +40,8 @@ debounce_interval_ms = 1500
 "#;
 
 #[test]
-fn valid_toml_parses_with_expected_fields() {
-    let config: Config = toml::from_str(VALID_TOML).expect("valid TOML must parse");
+fn valid_toml_parses_with_expected_fields() -> Result<(), Box<dyn std::error::Error>> {
+    let config: Config = toml::from_str(VALID_TOML)?;
 
     assert_eq!(config.directories.len(), 1);
     assert_eq!(config.directories[0].path, PathBuf::from("~/Documents"));
@@ -55,6 +56,7 @@ fn valid_toml_parses_with_expected_fields() {
     assert_eq!(config.processing.max_file_size_mb, 25);
     assert_eq!(config.processing.batch_size, 7);
     assert_eq!(config.processing.debounce_interval_ms, 1500);
+    Ok(())
 }
 
 #[test]
@@ -104,8 +106,8 @@ fn empty_toml_is_a_clean_error_not_a_panic() {
 }
 
 #[test]
-fn valid_yaml_revise_config_loads_from_directory() {
-    let dir = tempfile::tempdir().expect("tempdir");
+fn valid_yaml_revise_config_loads_from_directory() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
     let yaml = r#"
 purpose: "Keep docs accurate"
 scope: "docs/"
@@ -130,57 +132,63 @@ languages:
     enabled: true
     output_pattern: "{filename}_{lang}.{ext}"
 "#;
-    std::fs::write(dir.path().join("goglz.yaml"), yaml).unwrap();
+    std::fs::write(dir.path().join("goglz.yaml"), yaml)?;
 
-    let config: ReviseConfig = load_revise_config(dir.path()).expect("valid YAML must load");
+    let config: ReviseConfig = load_revise_config(dir.path())?;
     assert_eq!(config.purpose, "Keep docs accurate");
     assert_eq!(config.writing_style.tone, "Friendly");
     assert_eq!(config.formatting_rules.max_line_length, Some(100));
     assert_eq!(config.languages.len(), 1);
     assert!(config.languages[0].enabled);
+    Ok(())
 }
 
 #[test]
-fn missing_goglz_yaml_falls_back_to_defaults_without_error() {
-    let dir = tempfile::tempdir().expect("tempdir");
+fn missing_goglz_yaml_falls_back_to_defaults_without_error(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
     // No goglz.yaml written - load_revise_config must not error.
-    let config = load_revise_config(dir.path()).expect("missing file must fall back, not error");
+    let config = load_revise_config(dir.path())?;
     assert!(!config.purpose.is_empty());
     assert!(config.languages.is_empty());
+    Ok(())
 }
 
 #[test]
-fn malformed_goglz_yaml_is_a_clean_error_not_a_panic() {
-    let dir = tempfile::tempdir().expect("tempdir");
+fn malformed_goglz_yaml_is_a_clean_error_not_a_panic() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
     std::fs::write(
         dir.path().join("goglz.yaml"),
         "purpose: [this is not valid: yaml",
-    )
-    .unwrap();
+    )?;
 
     let result = load_revise_config(dir.path());
     assert!(result.is_err(), "malformed YAML must not parse");
+    Ok(())
 }
 
 #[test]
-fn expand_path_bare_tilde_is_home_dir() {
-    let home = dirs::home_dir().expect("home dir must resolve in test environment");
+fn expand_path_bare_tilde_is_home_dir() -> Result<(), Box<dyn std::error::Error>> {
+    let home = dirs::home_dir().ok_or("home dir must resolve in test environment")?;
     assert_eq!(expand_path(&PathBuf::from("~")), home);
+    Ok(())
 }
 
 #[test]
-fn expand_path_tilde_slash_is_home_dir() {
-    let home = dirs::home_dir().expect("home dir must resolve in test environment");
+fn expand_path_tilde_slash_is_home_dir() -> Result<(), Box<dyn std::error::Error>> {
+    let home = dirs::home_dir().ok_or("home dir must resolve in test environment")?;
     assert_eq!(expand_path(&PathBuf::from("~/")), home);
+    Ok(())
 }
 
 #[test]
-fn expand_path_tilde_with_subpath_joins_home() {
-    let home = dirs::home_dir().expect("home dir must resolve in test environment");
+fn expand_path_tilde_with_subpath_joins_home() -> Result<(), Box<dyn std::error::Error>> {
+    let home = dirs::home_dir().ok_or("home dir must resolve in test environment")?;
     assert_eq!(
         expand_path(&PathBuf::from("~/Documents/notes.md")),
         home.join("Documents/notes.md")
     );
+    Ok(())
 }
 
 #[test]

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 //! Goglz library crate.
 //!
 //! This exposes the internals of the `goglz` binary (config loading, directory
@@ -5,9 +6,11 @@
 //! that integration tests (and any future embedders) can exercise real
 //! behavior without going through the CLI/daemon process.
 pub mod ai_client;
+pub mod anti_hunk;
 pub mod config;
 pub mod error;
 pub mod monitor;
+pub mod planning;
 pub mod portfolio;
 pub mod processor;
 pub mod revise;

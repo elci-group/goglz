@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 //! Portfolio-mode project discovery.
 //!
 //! A "project" is a directory that contains a `goglz.yaml` file. The
@@ -88,8 +89,16 @@ mod tests {
         fs::create_dir_all(home.path().join("project-b")).unwrap();
         fs::create_dir_all(home.path().join("not-a-project")).unwrap();
 
-        fs::write(home.path().join("project-a").join(PROJECT_MARKER), "purpose: a\n").unwrap();
-        fs::write(home.path().join("project-b").join(PROJECT_MARKER), "purpose: b\n").unwrap();
+        fs::write(
+            home.path().join("project-a").join(PROJECT_MARKER),
+            "purpose: a\n",
+        )
+        .unwrap();
+        fs::write(
+            home.path().join("project-b").join(PROJECT_MARKER),
+            "purpose: b\n",
+        )
+        .unwrap();
 
         let projects = discover_projects_default(home.path()).unwrap();
         assert_eq!(projects.len(), 2);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 use crate::ai_client::{AiClient, ClarityImprovement, ConceptualizationResult};
 use crate::config::{expand_path, Config};
 use crate::error::Result;
@@ -176,11 +177,18 @@ impl DocumentProcessor {
         let output_dir = expand_path(&self.config.processing.output_directory);
         fs::create_dir_all(&output_dir)?;
 
-        let result_filename = format!(
-            "{}_{}.json",
-            result.file_path.file_name().unwrap().to_str().unwrap(),
-            result.id
-        );
+        let file_stem = result
+            .file_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| {
+                crate::error::GoglzError::ProcessingFailed(format!(
+                    "Cannot determine file name for {:?}",
+                    result.file_path
+                ))
+            })?;
+
+        let result_filename = format!("{}_{}.json", file_stem, result.id);
         let result_path = output_dir.join(result_filename);
 
         let json = serde_json::to_string_pretty(result)?;
@@ -188,11 +196,7 @@ impl DocumentProcessor {
 
         // Also save improved text if available
         if let Some(ref clarity) = result.clarity_improvement {
-            let improved_filename = format!(
-                "{}_{}_improved.txt",
-                result.file_path.file_name().unwrap().to_str().unwrap(),
-                result.id
-            );
+            let improved_filename = format!("{}_{}_improved.txt", file_stem, result.id);
             let improved_path = output_dir.join(improved_filename);
             fs::write(&improved_path, &clarity.improved_text)?;
         }

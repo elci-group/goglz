@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 //! Shared helpers for goglz integration tests.
 //!
 //! Nothing in here performs real network I/O. Anywhere an `AiClient` is
@@ -10,8 +11,8 @@
 
 use goglz::ai_client::AiClient;
 use goglz::config::{
-    AssetReference, Config, FormattingRules, GptOssConfig, GroqConfig, LanguageConfig,
-    MonitoredDirectory, ProcessingConfig, ReviseConfig, WritingStyle,
+    AntiHunkingConfig, AssetReference, Config, FormattingRules, GptOssConfig, GroqConfig,
+    LanguageConfig, MonitoredDirectory, ProcessingConfig, ReviseConfig, WritingStyle,
 };
 use std::path::PathBuf;
 
@@ -84,6 +85,7 @@ pub fn minimal_revise_config() -> ReviseConfig {
         global_assets: Vec::<AssetReference>::new(),
         local_assets: Vec::<AssetReference>::new(),
         languages: Vec::<LanguageConfig>::new(),
+        anti_hunking: AntiHunkingConfig::default(),
     }
 }
 

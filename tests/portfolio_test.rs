@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 //! Portfolio-mode integration tests.
 mod support;
 
@@ -10,19 +11,21 @@ fn goglz_cmd(home: &std::path::Path) -> std::process::Command {
 }
 
 #[test]
-fn help_lists_portfolio_flag() {
-    let home = tempfile::tempdir().unwrap();
-    let output = goglz_cmd(home.path()).arg("--help").output().unwrap();
+fn help_lists_portfolio_flag() -> Result<(), Box<dyn std::error::Error>> {
+    let home = tempfile::tempdir()?;
+    let output = goglz_cmd(home.path()).arg("--help").output()?;
     assert!(output.status.success());
     let help = String::from_utf8_lossy(&output.stdout);
     assert!(
         help.contains("--portfolio"),
         "missing `--portfolio` in --help output: {help}"
     );
+    Ok(())
 }
 
 #[test]
-fn revise_portfolio_processes_each_project_and_skips_non_projects() {
+fn revise_portfolio_processes_each_project_and_skips_non_projects(
+) -> Result<(), Box<dyn std::error::Error>> {
     // HOME layout:
     //   ~/project-alpha/goglz.yaml
     //   ~/project-beta/goglz.yaml
@@ -30,11 +33,11 @@ fn revise_portfolio_processes_each_project_and_skips_non_projects() {
     //
     // Projects are kept empty so the revise pipeline never calls the AI and
     // the test stays deterministic without network access or API keys.
-    let home = tempfile::tempdir().unwrap();
+    let home = tempfile::tempdir()?;
 
-    fs::create_dir_all(home.path().join("project-alpha")).unwrap();
-    fs::create_dir_all(home.path().join("project-beta")).unwrap();
-    fs::create_dir_all(home.path().join("not-a-project")).unwrap();
+    fs::create_dir_all(home.path().join("project-alpha"))?;
+    fs::create_dir_all(home.path().join("project-beta"))?;
+    fs::create_dir_all(home.path().join("not-a-project"))?;
 
     let goglz_yaml = r#"purpose: Improve document clarity
 scope: All documentation files
@@ -56,14 +59,13 @@ local_assets: []
 languages: []
 "#;
 
-    fs::write(home.path().join("project-alpha/goglz.yaml"), goglz_yaml).unwrap();
-    fs::write(home.path().join("project-beta/goglz.yaml"), goglz_yaml).unwrap();
-    fs::write(home.path().join("not-a-project/readme.md"), "# Orphan").unwrap();
+    fs::write(home.path().join("project-alpha/goglz.yaml"), goglz_yaml)?;
+    fs::write(home.path().join("project-beta/goglz.yaml"), goglz_yaml)?;
+    fs::write(home.path().join("not-a-project/readme.md"), "# Orphan")?;
 
     let output = goglz_cmd(home.path())
         .args(["--portfolio", "revise"])
-        .output()
-        .unwrap();
+        .output()?;
 
     assert!(
         output.status.success(),
@@ -84,16 +86,17 @@ languages: []
         stdout.contains("Total documents processed: 0"),
         "expected per-project count in stdout: {stdout}"
     );
+    Ok(())
 }
 
 #[test]
-fn revise_portfolio_with_no_projects_warns_and_exits_cleanly() {
-    let home = tempfile::tempdir().unwrap();
+fn revise_portfolio_with_no_projects_warns_and_exits_cleanly(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let home = tempfile::tempdir()?;
 
     let output = goglz_cmd(home.path())
         .args(["--portfolio", "revise"])
-        .output()
-        .unwrap();
+        .output()?;
 
     assert!(
         output.status.success(),
@@ -105,15 +108,15 @@ fn revise_portfolio_with_no_projects_warns_and_exits_cleanly() {
         stdout.contains("no goglz projects found"),
         "stdout: {stdout}"
     );
+    Ok(())
 }
 
 #[test]
-fn portfolio_flag_is_ignored_for_status() {
-    let home = tempfile::tempdir().unwrap();
+fn portfolio_flag_is_ignored_for_status() -> Result<(), Box<dyn std::error::Error>> {
+    let home = tempfile::tempdir()?;
     let output = goglz_cmd(home.path())
         .args(["--portfolio", "status"])
-        .output()
-        .unwrap();
+        .output()?;
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -121,4 +124,5 @@ fn portfolio_flag_is_ignored_for_status() {
         stdout.contains("--portfolio has no effect"),
         "stdout: {stdout}"
     );
+    Ok(())
 }

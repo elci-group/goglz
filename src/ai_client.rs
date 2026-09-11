@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: MIT
 use crate::config::{Config, GptOssConfig, GroqConfig};
 use crate::error::{GoglzError, Result};
+use ingauge_gate::Admitter;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -24,6 +26,7 @@ pub struct AiClient {
     client: Client,
     gpt_oss_config: GptOssConfig,
     groq_config: GroqConfig,
+    admitter: Admitter,
 }
 
 impl AiClient {
@@ -32,6 +35,7 @@ impl AiClient {
             client: Client::new(),
             gpt_oss_config: config.gpt_oss.clone(),
             groq_config: config.groq.clone(),
+            admitter: Admitter::from_env(),
         }
     }
 
@@ -139,6 +143,11 @@ impl AiClient {
     }
 
     async fn call_gpt_oss(&self, model: &str, prompt: &str) -> Result<String> {
+        self.admitter
+            .wait_and_admit("gpt-oss", Some(model), Some(2_000))
+            .await
+            .map_err(|error| GoglzError::ProcessingFailed(format!("ingauge admission: {error}")))?;
+
         let request_body = json!({
             "model": model,
             "messages": [
@@ -170,24 +179,35 @@ impl AiClient {
             .send()
             .await?;
 
-        if !response.status().is_success() {
+        let result = if !response.status().is_success() {
             let error_text = response.text().await?;
-            return Err(GoglzError::ProcessingFailed(format!(
+            Err(GoglzError::ProcessingFailed(format!(
                 "GPT OSS API error: {}",
                 error_text
-            )));
-        }
+            )))
+        } else {
+            let response_json: serde_json::Value = response.json().await?;
+            response_json["choices"][0]["message"]["content"]
+                .as_str()
+                .map(|s| s.to_string())
+                .ok_or_else(|| {
+                    GoglzError::ProcessingFailed("Invalid API response format".to_string())
+                })
+        };
 
-        let response_json: serde_json::Value = response.json().await?;
-        response_json["choices"][0]["message"]["content"]
-            .as_str()
-            .map(|s| s.to_string())
-            .ok_or_else(|| GoglzError::ProcessingFailed("Invalid API response format".to_string()))
+        self.admitter.complete("gpt-oss", Some(model)).await;
+        result
     }
 
     async fn call_groq(&self, prompt: &str) -> Result<String> {
+        let model = self.groq_config.model.clone();
+        self.admitter
+            .wait_and_admit("groq", Some(&model), Some(2_000))
+            .await
+            .map_err(|error| GoglzError::ProcessingFailed(format!("ingauge admission: {error}")))?;
+
         let request_body = json!({
-            "model": self.groq_config.model,
+            "model": model,
             "messages": [
                 {
                     "role": "system",
@@ -217,19 +237,24 @@ impl AiClient {
             .send()
             .await?;
 
-        if !response.status().is_success() {
+        let result = if !response.status().is_success() {
             let error_text = response.text().await?;
-            return Err(GoglzError::ProcessingFailed(format!(
+            Err(GoglzError::ProcessingFailed(format!(
                 "Groq API error: {}",
                 error_text
-            )));
-        }
+            )))
+        } else {
+            let response_json: serde_json::Value = response.json().await?;
+            response_json["choices"][0]["message"]["content"]
+                .as_str()
+                .map(|s| s.to_string())
+                .ok_or_else(|| {
+                    GoglzError::ProcessingFailed("Invalid API response format".to_string())
+                })
+        };
 
-        let response_json: serde_json::Value = response.json().await?;
-        response_json["choices"][0]["message"]["content"]
-            .as_str()
-            .map(|s| s.to_string())
-            .ok_or_else(|| GoglzError::ProcessingFailed("Invalid API response format".to_string()))
+        self.admitter.complete("groq", Some(&model)).await;
+        result
     }
 
     fn parse_conceptualization(&self, response: &str) -> Result<ConceptualizationResult> {

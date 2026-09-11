@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: MIT
 use clap::{Parser, Subcommand};
 use daemonize::Daemonize;
 use goglz::ai_client::AiClient;
 use goglz::config::{load_config, load_revise_config, MonitoredDirectory};
 use goglz::error::{GoglzError, Result};
 use goglz::monitor::DirectoryMonitor;
+use goglz::planning::{self, PlanOptions};
 use goglz::portfolio::{default_portfolio_patterns, discover_projects_default};
 use goglz::processor::DocumentProcessor;
 use goglz::revise::ReviseProcessor;
@@ -45,6 +47,44 @@ enum Commands {
         #[arg(short, long)]
         directory: Option<PathBuf>,
     },
+    /// Create, revise, or check a product strategy workspace
+    Plan {
+        #[command(subcommand)]
+        command: PlanCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum PlanCommands {
+    /// Generate the complete PRD, TRD, MVP, flow, brand, schema, and growth set
+    Generate {
+        #[arg(short, long)]
+        directory: Option<PathBuf>,
+        #[arg(long)]
+        topic: Option<String>,
+        #[arg(long)]
+        force: bool,
+    },
+    /// Revise one artifact or the complete plan
+    Revise {
+        #[arg(short, long)]
+        directory: Option<PathBuf>,
+        #[arg(long)]
+        artifact: Option<String>,
+        #[arg(
+            long,
+            default_value = "Clarify assumptions, risks, and measurable next steps."
+        )]
+        instruction: String,
+        /// Use the configured Groq model for a generative revision
+        #[arg(long)]
+        ai: bool,
+    },
+    /// Check completeness and cross-document consistency
+    Check {
+        #[arg(short, long)]
+        directory: Option<PathBuf>,
+    },
 }
 
 #[tokio::main]
@@ -79,6 +119,57 @@ async fn main() -> Result<()> {
                 revise_documents(directory).await?;
             }
         }
+        Commands::Plan { command } => match command {
+            PlanCommands::Generate {
+                directory,
+                topic,
+                force,
+            } => {
+                let root = directory.unwrap_or(std::env::current_dir()?);
+                let written = planning::generate(&root, topic.as_deref(), force)?;
+                println!(
+                    "Generated {} planning artifact(s) in {}",
+                    written,
+                    root.display()
+                );
+            }
+            PlanCommands::Revise {
+                directory,
+                artifact,
+                instruction,
+                ai,
+            } => {
+                let root = directory.unwrap_or(std::env::current_dir()?);
+                let options = PlanOptions {
+                    artifact,
+                    instruction,
+                    ai,
+                };
+                let revised =
+                    planning::revise(&root, &options, || Ok(AiClient::new(&load_config()?)))
+                        .await?;
+                println!(
+                    "Revised {} planning artifact(s) in {}",
+                    revised,
+                    root.display()
+                );
+            }
+            PlanCommands::Check { directory } => {
+                let root = directory.unwrap_or(std::env::current_dir()?);
+                let report = planning::check(&root)?;
+                for result in &report.results {
+                    println!(
+                        "{} {}",
+                        if result.passed { "PASS" } else { "FAIL" },
+                        result.name
+                    );
+                }
+                if !report.passed {
+                    return Err(GoglzError::ProcessingFailed("plan checks failed".into()));
+                }
+                println!("All planning checks passed");
+            }
+        },
     }
 
     Ok(())
@@ -335,7 +426,10 @@ async fn revise_documents(directory: Option<PathBuf>) -> Result<()> {
         .try_init();
 
     // Determine project root (current directory or parent of target directory)
-    let target_dir = directory.unwrap_or_else(|| std::env::current_dir().unwrap());
+    let target_dir = match directory {
+        Some(dir) => dir,
+        None => std::env::current_dir()?,
+    };
     let project_root = target_dir.clone();
 
     // Load main configuration for API keys

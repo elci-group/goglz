@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 use crate::config::{expand_path, Config};
 use crate::error::Result;
 use notify::{recommended_watcher, Event, EventKind, RecursiveMode, Watcher};

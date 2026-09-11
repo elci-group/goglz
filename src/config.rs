@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -50,6 +51,8 @@ pub struct ReviseConfig {
     pub global_assets: Vec<AssetReference>,
     pub local_assets: Vec<AssetReference>,
     pub languages: Vec<LanguageConfig>,
+    #[serde(default)]
+    pub anti_hunking: AntiHunkingConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,6 +86,23 @@ pub struct AssetReference {
     pub path: PathBuf,
     pub asset_type: String,
     pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AntiHunkingConfig {
+    pub enabled: bool,
+    pub max_section_lines: usize,
+    pub split_on_headings: Vec<String>,
+}
+
+impl Default for AntiHunkingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_section_lines: 80,
+            split_on_headings: vec!["##".to_string(), "###".to_string()],
+        }
+    }
 }
 
 impl Default for Config {
@@ -131,9 +151,9 @@ pub fn load_config() -> Result<Config> {
 }
 
 pub fn expand_path(path: &Path) -> PathBuf {
-    if path.starts_with("~") {
+    if let Ok(rest) = path.strip_prefix("~") {
         if let Some(home) = dirs::home_dir() {
-            return home.join(path.strip_prefix("~").unwrap());
+            return home.join(rest);
         }
     }
     path.to_path_buf()
@@ -182,5 +202,6 @@ fn default_revise_config() -> ReviseConfig {
         global_assets: vec![],
         local_assets: vec![],
         languages: vec![],
+        anti_hunking: AntiHunkingConfig::default(),
     }
 }
