@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use daemonize::Daemonize;
 use goglz::ai_client::AiClient;
 use goglz::config::{load_config, load_revise_config, MonitoredDirectory};
+use goglz::drift::{self, DriftOptions};
 use goglz::error::{GoglzError, Result};
 use goglz::monitor::DirectoryMonitor;
 use goglz::planning::{self, PlanOptions};
@@ -47,11 +48,39 @@ enum Commands {
         #[arg(short, long)]
         directory: Option<PathBuf>,
     },
+    /// Find documents whose stated facts (version, date, line and test
+    /// counts) no longer match the repository
+    Drift {
+        /// Repository to check (default: current working directory)
+        #[arg(short, long)]
+        directory: Option<PathBuf>,
+        /// Output format
+        #[arg(long, value_enum, default_value_t = DriftFormat::Human)]
+        format: DriftFormat,
+        /// Exit with status 1 when any document has drifted
+        #[arg(long)]
+        strict: bool,
+        /// Relative difference tolerated between claimed and actual counts
+        #[arg(long, default_value_t = 0.25)]
+        tolerance: f64,
+        /// Non-documentation commits tolerated after a document's stated date
+        #[arg(long, default_value_t = 25)]
+        max_commits: usize,
+        /// Repository-relative path prefix to skip (repeatable)
+        #[arg(long)]
+        exclude: Vec<String>,
+    },
     /// Create, revise, or check a product strategy workspace
     Plan {
         #[command(subcommand)]
         command: PlanCommands,
     },
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum DriftFormat {
+    Human,
+    Json,
 }
 
 #[derive(Subcommand)]
@@ -117,6 +146,34 @@ async fn main() -> Result<()> {
                 revise_portfolio().await?;
             } else {
                 revise_documents(directory).await?;
+            }
+        }
+        Commands::Drift {
+            directory,
+            format,
+            strict,
+            tolerance,
+            max_commits,
+            exclude,
+        } => {
+            if !(tolerance.is_finite() && tolerance >= 0.0) {
+                return Err(GoglzError::ProcessingFailed(format!(
+                    "--tolerance must be a non-negative number, got {tolerance}"
+                )));
+            }
+            let options = DriftOptions {
+                tolerance,
+                max_commits,
+                exclude,
+            };
+            let roots = if cli.portfolio {
+                discover_projects_default(&home_directory()?)?
+            } else {
+                vec![directory.unwrap_or(std::env::current_dir()?)]
+            };
+            let clean = run_drift(&roots, &options, format)?;
+            if strict && !clean {
+                std::process::exit(1);
             }
         }
         Commands::Plan { command } => match command {
@@ -203,6 +260,34 @@ fn build_portfolio_directories() -> Result<Vec<MonitoredDirectory>> {
             recursive: true,
         })
         .collect())
+}
+
+/// Check each root for drifted documentation; returns whether all were clean.
+fn run_drift(roots: &[PathBuf], options: &DriftOptions, format: DriftFormat) -> Result<bool> {
+    let mut reports = Vec::with_capacity(roots.len());
+    for root in roots {
+        reports.push(drift::scan(root, options)?);
+    }
+    let clean = reports.iter().all(|r| r.is_clean());
+    match format {
+        DriftFormat::Json => {
+            let value = if reports.len() == 1 {
+                serde_json::to_value(&reports[0])?
+            } else {
+                serde_json::to_value(&reports)?
+            };
+            println!("{}", serde_json::to_string_pretty(&value)?);
+        }
+        DriftFormat::Human => {
+            for report in &reports {
+                if reports.len() > 1 {
+                    println!("--- Project: {} ---", report.root.display());
+                }
+                print!("{}", drift::render(report));
+            }
+        }
+    }
+    Ok(clean)
 }
 
 fn warn_ignored_portfolio(portfolio: bool, command: &str) {

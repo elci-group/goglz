@@ -8,6 +8,7 @@
 pub mod ai_client;
 pub mod anti_hunk;
 pub mod config;
+pub mod drift;
 pub mod error;
 pub mod monitor;
 pub mod planning;

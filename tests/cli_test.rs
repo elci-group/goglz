@@ -20,7 +20,15 @@ fn help_lists_all_subcommands() -> Result<(), Box<dyn std::error::Error>> {
     let output = goglz_cmd(home.path()).arg("--help").output()?;
     assert!(output.status.success());
     let help = String::from_utf8_lossy(&output.stdout);
-    for command in ["start", "stop", "status", "init-config", "revise", "plan"] {
+    for command in [
+        "start",
+        "stop",
+        "status",
+        "init-config",
+        "revise",
+        "drift",
+        "plan",
+    ] {
         assert!(
             help.contains(command),
             "missing `{command}` in --help output: {help}"
