@@ -17,3 +17,16 @@ Thumbs.db
 /tmp/goglz.*
 .kaptaind/
 .dreams/
+.azusa/
+.lwoodz/
+.uni/
+.traci/
+.orb
+*.log
+.env
+.skillastic/daemon.err
+.skillastic/daemon.out
+.skillastic/daemon.pid
+*.backup
+assets/*.AppImage
+assets/*.deb

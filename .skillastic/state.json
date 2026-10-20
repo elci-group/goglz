@@ -1,3 +1,17 @@
 {
-  "events": []
+  "last_app_version": "0.1.0",
+  "last_head": "3a1858d",
+  "last_check": "2026-10-17T11:37:17.026713128Z",
+  "events": [
+    "[2026-08-26 16:14:11] change detected: app ? -> 0.1.0, head None -> Some(\"05b2c44\")",
+    "[2026-08-26 16:14:11] resolve goglz-dev: load (skill verified for app 0.1.0)",
+    "[2026-08-28 08:31:44] change detected: app 0.1.0 -> 0.1.0, head Some(\"05b2c44\") -> Some(\"8b60162\")",
+    "[2026-08-28 08:31:44] resolve goglz-dev: load (skill verified for app 0.1.0)",
+    "[2026-09-11 22:25:57] change detected: app 0.1.0 -> 0.1.0, head Some(\"8b60162\") -> Some(\"187723d\")",
+    "[2026-09-11 22:25:57] resolve goglz-dev: load (skill verified for app 0.1.0)",
+    "[2026-09-24 19:09:42] change detected: app 0.1.0 -> 0.1.0, head Some(\"187723d\") -> Some(\"68ff898\")",
+    "[2026-09-24 19:09:42] resolve goglz-dev: load (skill verified for app 0.1.0)",
+    "[2026-09-24 19:14:42] change detected: app 0.1.0 -> 0.1.0, head Some(\"68ff898\") -> Some(\"3a1858d\")",
+    "[2026-09-24 19:14:42] resolve goglz-dev: load (skill verified for app 0.1.0)"
+  ]
 }

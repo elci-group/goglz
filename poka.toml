@@ -1,0 +1,11 @@
+[project]
+name = "goglz"
+
+[tools]
+lwoodz = true
+traci = true
+
+[rules]
+documentation = true
+security = true
+testing = true
